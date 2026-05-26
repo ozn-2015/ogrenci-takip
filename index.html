@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Öğrenci & Kurs Takip Sistemi (SMS ve Yedeklemeli - V3)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --secondary: #64748b;
+            --info: #0284c7;
+            --warning: #f59e0b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            height: fit-content;
+        }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
+        input, select {
+            width: 100%; padding: 10px; border: 1px solid var(--border);
+            border-radius: 6px; box-sizing: border-box; font-size: 0.95rem;
+        }
+        button {
+            background-color: var(--primary); color: white; border: none;
+            padding: 10px 15px; border-radius: 6px; cursor: pointer;
+            width: 100%; font-weight: bold; font-size: 1rem;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+        table {
+            width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem;
+        }
+        th, td {
+            padding: 12px; text-align: left; border-bottom: 1px solid var(--border);
+        }
+        th { background-color: #f1f5f9; font-weight: 600; }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .actions button {
+            width: auto; padding: 6px 10px; font-size: 0.8rem; margin: 0;
+        }
+        .btn-wp { background-color: var(--success); }
+        .btn-wp:hover { background-color: #059669; }
+        .btn-sms { background-color: var(--warning); }
+        .btn-sms:hover { background-color: #d97706; }
+        .btn-pdf { background-color: var(--danger); }
+        .btn-pdf:hover { background-color: #dc2626; }
+        .btn-delete { background-color: var(--secondary); }
+        .btn-delete:hover { background-color: #475569; }
+        
+        .backup-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px dashed var(--border);
+        }
+        .btn-backup { background-color: #475569; margin-bottom: 8px; }
+        .btn-backup:hover { background-color: #334155; }
+        .btn-restore { background-color: var(--info); }
+        .btn-restore:hover { background-color: #0369a1; }
+        
+        .badge {
+            background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Yeni Öğrenci Ekle</h2>
+            <form id="studentForm">
+                <div class="form-group">
+                    <label>Öğrenci Adı Soyadı</label>
+                    <input type="text" id="adSoyad" required>
+                </div>
+                <div class="form-group">
+                    <label>Ders</label>
+                    <select id="ders">
+                        <option>Matematik</option><option>Fizik</option><option>Kimya</option>
+                        <option>Biyoloji</option><option>Türkçe</option><option>Tarih</option><option>Coğrafya</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sınıf & Okul</label>
+                    <input type="text" id="okul" placeholder="Örn: 10. Sınıf - Atatürk Lisesi">
+                </div>
+                <div class="form-group">
+                    <label>Veli Adı (Anne/Baba)</label>
+                    <input type="text" id="veliAd">
+                </div>
+                <div class="form-group">
+                    <label>Veli Telefonu (Başında 0 olmadan)</label>
+                    <input type="number" id="veliTel" placeholder="5551234567" required>
+                </div>
+                <div class="form-group">
+                    <label>Toplam Kurs Ücreti (₺)</label>
+                    <input type="number" id="toplamUcret" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Ödenen Tutar (₺)</label>
+                    <input type="number" id="odenen" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Son Derse Katılım</label>
+                    <select id="katilim">
+                        <option value="Geldi">Geldi</option>
+                        <option value="Gelmedi">Gelmedi</option>
+                    </select>
+                </div>
+                <button type="submit">Öğrenciyi Kaydet</button>
+            </form>
+
+            <div class="backup-section">
+                <h2>Veri Yönetimi & Yedekleme</h2>
+                <div class="form-group">
+                    <button type="button" class="btn-backup" onclick="exportBackup()">Verileri Bilgisayara Yedekle (.json)</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importBackup(event)">
+                    <button type="button" class="btn-restore" onclick="document.getElementById('importFile').click()">Yedekten Geri Yükle</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Öğrenci Listesi & Durum Tablosu <span class="badge" id="studentCount">0 Öğrenci</span></h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>Ders</th>
+                            <th>Bakiye Durumu</th>
+                            <th>Katılım</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
+        const studentForm = document.getElementById('studentForm');
+        const tableBody = document.getElementById('studentTableBody');
+        const studentCountBadge = document.getElementById('studentCount');
+
+        studentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newStudent = {
+                id: Date.now(),
+                adSoyad: document.getElementById('adSoyad').value,
+                ders: document.getElementById('ders').value,
+                okul: document.getElementById('okul').value,
+                veliAd: document.getElementById('veliAd').value,
+                veliTel: document.getElementById('veliTel').value,
+                toplamUcret: parseFloat(document.getElementById('toplamUcret').value) || 0,
+                odenen: parseFloat(document.getElementById('odenen').value) || 0,
+                katilim: document.getElementById('katilim').value
+            };
+            students.push(newStudent);
+            saveData();
+            renderTable();
+            studentForm.reset();
+        });
+
+        function saveData() {
+            localStorage.setItem('kursOgrencileri', JSON.stringify(students));
+        }
+
+        function renderTable() {
+            tableBody.innerHTML = '';
+            studentCountBadge.textContent = `${students.length} Öğrenci`;
+            
+            if (students.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:30px;">Kayıtlı öğrenci yok.</td></tr>`;
+                return;
+            }
+
+            students.forEach((student, index) => {
+                const bakiye = student.toplamUcret - student.odenen;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${student.adSoyad}</strong><br><small>${student.okul}</small></td>
+                    <td>${student.ders}</td>
+                    <td>Ücret: ${student.toplamUcret}₺<br>Kalan: <strong style="color:${bakiye > 0 ? 'var(--danger)' : 'var(--success)'}">${bakiye}₺</strong></td>
+                    <td><span style="color:${student.katilim === 'Geldi' ? 'var(--success)' : 'var(--danger)'}; font-weight:bold;">${student.katilim}</span></td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-wp" onclick="sendWP(${index})">WhatsApp</button>
+                            <button class="btn-sms" onclick="sendSMS(${index})">SMS At</button>
+                            <button class="btn-pdf" onclick="generatePDF(${index})">PDF</button>
+                            <button class="btn-delete" onclick="deleteStudent(${index})">Sil</button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function deleteStudent(index) {
+            if(confirm('Silmek istediğinize emin misiniz?')) {
+                students.splice(index, 1);
+                saveData();
+                renderTable();
+            }
+        }
+
+        function sendWP(index) {
+            const student = students[index];
+            const bakiye = student.toplamUcret - student.odenen;
+            const mesaj = `Sayın ${student.veliAd},\n\nÖğrencimiz ${student.adSoyad}'ın kurs durumu:\nDers: ${student.ders}\nKatılım: ${student.katilim}\nBakiye: ${bakiye} TL.\nİyi günler.`;
+            window.open(`https://wa.me/90${student.veliTel}?text=${encodeURIComponent(mesaj)}`, '_blank');
+        }
+
+        function sendSMS(index) {
+            const student = students[index];
+            const tarih = new Date().toLocaleDateString('tr-TR');
+            const durum = student.katilim === 'Geldi' ? 'katilmistir' : 'KATILMAMISTIR';
+            const mesaj = `Sayin Veli, ogrenciniz ${student.adSoyad} ${tarih} tarihindeki ${student.ders} dersine ${durum}. Iyi gunler dileriz.`;
+            const encodedMesaj = encodeURIComponent(mesaj);
+            const smsLink = `sms:+90${student.veliTel}?body=${encodedMesaj}`;
+            window.location.href = smsLink;
+        }
+
+        function generatePDF(index) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const student = students[index];
+            const bakiye = student.toplamUcret - student.odenen;
+
+            doc.setFont("helvetica");
+            doc.setFontSize(22);
+            doc.text("Ogrenci Durum Raporu", 105, 20, null, null, "center");
+            doc.setFontSize(12);
+            doc.text(`Tarih: ${new Date().toLocaleDateString('tr-TR')}`, 20, 40);
+            doc.line(20, 45, 190, 45);
+            doc.setFontSize(14);
+            doc.text(`Ad Soyad: ${student.adSoyad}`, 20, 60);
+            doc.text(`Ders: ${student.ders}`, 20, 70);
+            doc.text(`Veli: ${student.veliTel}`, 20, 80);
+            doc.text(`Son Ders Katilimi: ${student.katilim}`, 20, 100);
+            doc.text(`Kalan Bakiye: ${bakiye} TL`, 20, 110);
+            doc.save(`${student.adSoyad}_Rapor.pdf`);
+        }
+
+        function exportBackup() {
+            const dataStr = JSON.stringify(students, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const link = document.createElement('a');
+            link.setAttribute('href', dataUri);
+            link.setAttribute('download', `kurs_yedek_${new Date().toISOString().slice(0,10)}.json`);
+            link.click();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                students = JSON.parse(e.target.result);
+                saveData();
+                renderTable();
+                alert("Yedek yüklendi!");
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
