@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurum Yönetim & Ön Muhasebe Otomasyonu (V7)</title>
+    <title>Kurum Yönetim & Ön Muhasebe Otomasyonu (V7.1)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -45,9 +45,9 @@
         .history-item:hover { background-color: #f8fafc; }
         .btn-icon { background: none !important; border: none !important; color: var(--danger) !important; cursor: pointer; font-size: 1.2rem !important; padding: 0 5px !important; margin: 0 !important; width: auto !important; }
         
-        /* Checkbox Listesi Özel Tasarım */
-        .checkbox-list { border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 150px; overflow-y: auto; background: #fff; }
-        .checkbox-list label { font-weight: normal; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        /* Checkbox Listesi Özel Tasarım (DÜZELTİLDİ) */
+        .checkbox-list { border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 150px; overflow-y: auto; overflow-x: auto; background: #fff; text-align: left; }
+        .checkbox-list label { font-weight: normal; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; cursor: pointer; white-space: nowrap; }
         
         /* Tooltip (Toplam Borç Detayı İçin) */
         .tooltip { position: relative; display: inline-block; cursor: pointer; color: var(--danger); font-weight: bold; border: 1px dashed var(--danger); padding: 4px 10px; border-radius: 6px; background: #fff; }
@@ -59,7 +59,6 @@
 <body>
 
     <div class="container">
-        <!-- Sol Panel -->
         <div class="panel">
             <button class="btn-settings" onclick="openSettingsModal()">⚙️ Öğretmen & Branş Ayarları</button>
             <h2 id="formTitle">Yeni Öğrenci Ekle</h2>
@@ -84,8 +83,7 @@
                 <div class="form-group">
                     <label>Alacağı Dersler (İstediklerinizi Seçin)</label>
                     <div class="checkbox-list" id="courseCheckboxes">
-                        <!-- Ayarlardan gelen dersler buraya dolacak -->
-                    </div>
+                        </div>
                 </div>
                 <button type="submit" id="submitBtn">Öğrenciyi Kaydet</button>
                 <button type="button" id="cancelEditBtn" style="background-color: var(--secondary); margin-top:5px; display:none;" onclick="clearForm()">Düzenlemeyi İptal Et</button>
@@ -99,7 +97,6 @@
             </div>
         </div>
 
-        <!-- Sağ Panel -->
         <div class="panel">
             <h2>Öğrenci Listesi <span class="badge" id="studentCount">0 Öğrenci</span></h2>
             <div style="overflow-x: auto;">
@@ -119,7 +116,6 @@
         </div>
     </div>
 
-    <!-- ÖĞRETMEN VE BRANŞ AYARLARI MODALI -->
     <div id="settingsModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeSettingsModal()">&times;</span>
@@ -140,14 +136,12 @@
         </div>
     </div>
 
-    <!-- HESAP VE DETAY PENCERESİ -->
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeDetailModal()">&times;</span>
             <h3 id="modalStudentName" style="margin-top: 0; color: var(--primary);">Öğrenci Detayı</h3>
             <p id="modalStudentInfo" style="color: var(--secondary); font-size:0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 10px;"></p>
             
-            <!-- SEÇİLEN DERS BİLGİ VE BORÇ KONTROL PANELİ -->
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <strong style="color: #1e3a8a;">İşlem Yapılacak Ders:</strong>
@@ -163,7 +157,6 @@
             </div>
 
             <div class="modal-grid">
-                <!-- Katılım -->
                 <div class="history-box">
                     <h4 style="margin-top: 0;">🗓️ Seçili Ders - Katılım</h4>
                     <div style="display: flex; gap: 5px;">
@@ -177,7 +170,6 @@
                     <div class="history-list" id="attendanceList"></div>
                 </div>
 
-                <!-- Ödeme -->
                 <div class="history-box">
                     <h4 style="margin-top: 0;">💰 Seçili Ders - Ödeme Makbuzu</h4>
                     <div style="display: flex; gap: 5px;">
@@ -199,6 +191,25 @@
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
         let activeStudentIndex = -1;
+
+        // V6'DAN V7'YE VERİ KURTARMA (MIGRATION) KODU - EKSİK ÖĞRENCİLERİ GERİ GETİRİR
+        let dataUpdated = false;
+        students.forEach(student => {
+            if (!student.dersKayitlari) {
+                student.dersKayitlari = [{
+                    courseId: Date.now() + Math.floor(Math.random() * 1000),
+                    brans: student.ders || "Eski Kayıtlı Ders",
+                    ogretmen: "Tanımsız",
+                    ucret: student.saatUcreti || student.toplamUcret || 0,
+                    katilimlar: student.katilimlar || [],
+                    odemeler: student.odemeler || []
+                }];
+                dataUpdated = true;
+            }
+        });
+        if (dataUpdated) {
+            localStorage.setItem('kursOgrencileri', JSON.stringify(students));
+        }
 
         // YARDIMCI FORMAT FONKSİYONLARI
         const formatMoney = (amount) => new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' ₺';
@@ -266,7 +277,6 @@
             let dersKayitlari = [];
             
             if(editIndex > -1) {
-                // Düzenleme yapılıyorsa eski kayıtları koruyarak yenilerini ekle
                 const eskiKayitlar = students[editIndex].dersKayitlari || [];
                 checkedBoxes.forEach(cb => {
                     const cId = parseInt(cb.value);
@@ -278,7 +288,6 @@
                     }
                 });
             } else {
-                // Yeni kayıt
                 checkedBoxes.forEach(cb => {
                     const s = coursesDB.find(c => c.id === parseInt(cb.value));
                     dersKayitlari.push({ courseId: s.id, brans: s.brans, ogretmen: s.ogretmen, ucret: s.ucret, katilimlar: [], odemeler: [] });
@@ -315,7 +324,6 @@
             document.getElementById('veliAd').value = student.veliAd;
             document.getElementById('veliTel').value = student.veliTel;
             
-            // Checkboxları işaretle
             document.querySelectorAll('.course-cb').forEach(cb => {
                 cb.checked = student.dersKayitlari.some(d => d.courseId === parseInt(cb.value));
             });
@@ -327,11 +335,10 @@
         }
 
         // ================= DİNAMİK TABLO İŞLEMLERİ =================
-        // Sadece bir dersin borcunu hesapla
         function getDersFinans(ders) {
             let toplamGelinensaat = 0;
             (ders.katilimlar || []).forEach(k => { if(k.durum === 'Geldi') toplamGelinensaat += (parseFloat(k.saat) || 1); });
-            const toplamDersUcreti = toplamGelinensaat * ders.ucret;
+            const toplamDersUcreti = toplamGelinensaat * (ders.ucret || 0);
             
             let toplamOdenen = 0;
             (ders.odemeler || []).forEach(o => { toplamOdenen += (parseFloat(o.miktar) || 0); });
@@ -339,7 +346,6 @@
             return { toplamGelinensaat, guncelBorc: (toplamDersUcreti - toplamOdenen) };
         }
 
-        // Tablodaki dropdown değiştiğinde satırdaki borç ve saat bilgisini günceller
         function updateTableRowStats(selectEl, studentIndex) {
             const dersIndex = selectEl.value;
             const student = students[studentIndex];
@@ -365,7 +371,6 @@
                 let optionsHtml = '';
                 student.dersKayitlari.forEach((d, i) => { optionsHtml += `<option value="${i}">${d.brans} (${d.ogretmen})</option>`; });
                 
-                // İlk dersin bilgilerini default olarak al
                 const ilkDers = student.dersKayitlari[0];
                 const fin = ilkDers ? getDersFinans(ilkDers) : {guncelBorc:0, toplamGelinensaat:0};
 
@@ -416,11 +421,9 @@
             if(!cIndex) return;
             const aktifDers = student.dersKayitlari[cIndex];
 
-            // 1. Seçili Dersin Borcunu Hesapla
             const aktifFin = getDersFinans(aktifDers);
             document.getElementById('modalSeciliBorc').textContent = formatMoney(aktifFin.guncelBorc);
 
-            // 2. Kümülatif Toplam Borcu Hesapla ve Tooltip'i Doldur
             let genelToplam = 0;
             let tooltipHtml = '';
             student.dersKayitlari.forEach(d => {
@@ -431,7 +434,6 @@
             document.getElementById('modalToplamBorc').textContent = formatMoney(genelToplam);
             document.getElementById('modalTooltipContent').innerHTML = tooltipHtml;
 
-            // Listeleri Çiz
             aktifDers.katilimlar.sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
             aktifDers.odemeler.sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
 
@@ -495,7 +497,6 @@
         function generateAdvancedPDF() {
             const student = students[activeStudentIndex];
             
-            // Toplam Borç Hesaplama
             let genelToplamBorc = 0;
             student.dersKayitlari.forEach(d => { genelToplamBorc += getDersFinans(d).guncelBorc; });
 
@@ -514,7 +515,6 @@
                 </table>
             `;
 
-            // Her Ders İçin Ayrı Blok Oluştur
             student.dersKayitlari.forEach(d => {
                 const fin = getDersFinans(d);
                 html += `
