@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V8)</title>
+    <title>Kurs Takip Asistanı (V8.1)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -13,8 +13,11 @@
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        /* YENİ: Ana Başlık */
-        .main-header { text-align: center; color: var(--primary); margin-top: 0; margin-bottom: 20px; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px; }
+        /* Ana Başlık ve Üst Bar */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; max-width: 1350px; margin: 0 auto 20px auto; }
+        .main-header { color: var(--primary); margin: 0; font-size: 2.2rem; font-weight: 800; letter-spacing: 1px; }
+        .btn-logout { background-color: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-logout:hover { background-color: #475569; }
         
         .container { max-width: 1350px; margin: 0 auto; display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
         .panel { background: var(--surface); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid var(--border); height: fit-content; }
@@ -31,7 +34,7 @@
         .actions { display: flex; flex-wrap: wrap; gap: 4px; }
         .actions button { width: auto; padding: 6px 10px; font-size: 0.8rem; margin: 0; }
         .btn-edit { background-color: var(--info); } .btn-detail { background-color: var(--warning); color: #000; }
-        .btn-wp { background-color: var(--success); } .btn-sms { background-color: #6366f1; }
+        .btn-wp { background-color: var(--success); text-decoration: none; display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.8rem; margin-right: 5px; }
         .btn-pdf { background-color: var(--danger); } .btn-delete { background-color: var(--secondary); }
         .btn-settings { background-color: #475569; margin-bottom: 15px; }
         
@@ -48,12 +51,12 @@
         .history-item:hover { background-color: #f8fafc; }
         .btn-icon { background: none !important; border: none !important; color: var(--danger) !important; cursor: pointer; font-size: 1.2rem !important; padding: 0 5px !important; margin: 0 !important; width: auto !important; }
         
-        /* YENİ: Alacağı Dersler - Alt alta hizalama ve taşırmama */
+        /* Alacağı Dersler - Alt alta hizalama */
         .checkbox-list { border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; background: #fff; text-align: left; }
         .checkbox-list label { font-weight: normal; margin-bottom: 5px; display: block; cursor: pointer; padding: 6px; border-bottom: 1px solid #f1f5f9; }
         .checkbox-list label:hover { background-color: #f8fafc; }
         
-        /* YENİ: Seçili Ders Borcu Kutusu */
+        /* Seçili Ders Borcu Kutusu */
         .borc-kutu { background-color: #fee2e2; border: 1px solid #fca5a5; padding: 6px 15px; border-radius: 8px; color: #991b1b; display: inline-flex; align-items: center; font-size: 1.1rem; white-space: nowrap; }
 
         /* Tooltip (Toplam Borç Detayı İçin) */
@@ -62,14 +65,14 @@
         .tooltip .tooltiptext::after { content: ""; position: absolute; bottom: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: transparent transparent #334155 transparent; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
 
-        /* YENİ: Giriş Ekranı (Login Overlay) */
+        /* Giriş Ekranı (Login Overlay) */
         #loginOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.98); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .login-box { background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .login-btn { padding: 15px; margin: 10px 0; font-size: 1.1rem; border-radius: 8px; display: block; width: 100%; border: none; cursor: pointer; color: white; font-weight: bold; }
         .btn-admin { background-color: var(--primary); }
         .btn-teacher { background-color: var(--success); }
         
-        /* YENİ: Rol Kısıtlamaları (Öğretmen Modunda Gizlenecekler) */
+        /* Rol Kısıtlamaları (Öğretmen Modunda Gizlenecekler) */
         body.teacher-mode .admin-only { display: none !important; }
         body.teacher-mode .container { display: block; } /* Öğretmende sol panel olmadığı için tablo genişlesin */
     </style>
@@ -90,7 +93,10 @@
         </div>
     </div>
 
-    <h1 class="main-header">🎓 KURS TAKİP ASİSTANI</h1>
+    <div class="top-bar">
+        <h1 class="main-header">🎓 KURS TAKİP ASİSTANI</h1>
+        <button class="btn-logout" onclick="logout()">🚪 Çıkış / Rol Değiştir</button>
+    </div>
 
     <div class="container">
         <div class="panel admin-only" id="leftPanel">
@@ -140,8 +146,18 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeSettingsModal()">&times;</span>
-            <h3 style="margin-top: 0; color: var(--primary);">⚙️ Öğretmen & Ders Havuzu</h3>
-            <p style="font-size: 0.9rem; color: var(--secondary);">Öğrenci eklemeden önce kurumunuzdaki dersleri ve öğretmen saat ücretlerini buraya tanımlayın.</p>
+            <h3 style="margin-top: 0; color: var(--primary);">⚙️ Öğretmen & Ders Ayarları</h3>
+            
+            <div style="margin-bottom: 20px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe;">
+                <label style="color: #1e3a8a; font-weight: bold; margin-bottom: 8px;">📲 Yönetici WhatsApp Numarası (Başında 0 olmadan)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="setAdminPhone" placeholder="Örn: 5551234567" style="flex: 1;">
+                    <button style="width: auto; background-color: #1e3a8a;" onclick="saveAdminPhone()">Numarayı Kaydet</button>
+                </div>
+                <small style="color: var(--secondary); display: block; margin-top: 5px;">Öğretmenlerin tahsilat/yoklama bildirimleri bu numaraya gönderilir.</small>
+            </div>
+
+            <p style="font-size: 0.9rem; color: var(--secondary); border-top: 1px dashed var(--border); padding-top: 15px;">Öğrenci eklemeden önce kurumunuzdaki dersleri ve öğretmenleri buraya tanımlayın.</p>
             <div style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
                 <input type="text" id="setBrans" placeholder="Branş (Örn: Matematik)" style="flex: 1;">
                 <input type="text" id="setOgretmen" placeholder="Öğretmen (Örn: Ahmet Hoca)" style="flex: 1;">
@@ -180,11 +196,11 @@
                     <h4 style="margin-top: 0;">🗓️ Seçili Ders - Katılım</h4>
                     <div style="display: flex; gap: 5px;">
                         <input type="date" id="logKatilimTarih" style="flex: 2;">
-                        <input type="number" id="logKatilimSaat" placeholder="Saat" value="1" style="flex: 1;" min="1" step="0.5">
+                        <input type="number" id="logKatilimSaat" placeholder="Saat" value="1" style="flex: 1; min-width: 60px;" min="1" step="0.5">
                         <select id="logKatilimDurum" style="flex: 1.5;">
                             <option value="Geldi">Geldi</option><option value="Gelmedi">Gelmedi</option>
                         </select>
-                        <button style="width: auto; padding:0 15px;" onclick="addAttendanceLog()">Ekle</button>
+                        <button id="btnYoklamaEkle" style="width: auto; padding:0 15px; white-space: nowrap;" onclick="addAttendanceLog()">Ekle</button>
                     </div>
                     <div class="history-list" id="attendanceList"></div>
                 </div>
@@ -193,8 +209,8 @@
                     <h4 style="margin-top: 0;">💰 Seçili Ders - Ödeme Makbuzu</h4>
                     <div style="display: flex; gap: 5px;">
                         <input type="date" id="logOdemeTarih" style="flex: 2;">
-                        <input type="number" id="logOdemeMiktar" placeholder="Tutar ₺" style="flex: 1.5;">
-                        <button id="btnTahsilEt" style="width: auto; padding:0 15px; background-color: var(--success);" onclick="addPaymentLog()">Tahsil Et</button>
+                        <input type="number" id="logOdemeMiktar" placeholder="Tutar ₺" style="flex: 1.5; min-width: 80px;">
+                        <button id="btnTahsilEt" style="width: auto; padding:0 15px; background-color: var(--success); white-space: nowrap;" onclick="addPaymentLog()">Tahsil Et</button>
                     </div>
                     <div class="history-list" id="paymentList"></div>
                 </div>
@@ -206,9 +222,10 @@
     </div>
     
     <script>
-        /// VERİTABANI YÜKLEME VE GLOBAL DEĞİŞKENLER
+        // VERİTABANI YÜKLEME VE GLOBAL DEĞİŞKENLER
 let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
 let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
+let adminPhone = localStorage.getItem('kursAdminPhone') || '';
 let activeStudentIndex = -1;
 let currentUserRole = 'admin'; // 'admin' veya 'teacher'
 let currentTeacherName = '';
@@ -249,11 +266,13 @@ function loginAs(role) {
         currentTeacherName = select.value;
         document.body.className = 'teacher-mode';
         document.getElementById('tableTitle').innerHTML = `Öğrenci Listesi <span style="font-size:0.9rem; color:var(--primary); font-weight:bold;">(Eğitmen: ${currentTeacherName})</span> <span class="badge" id="studentCount">0</span>`;
-        document.getElementById('btnTahsilEt').textContent = "Yöneticiye Tahsilat Bildir (WP)";
+        document.getElementById('btnTahsilEt').textContent = "📲 Admin WP (Tahsilat)";
+        document.getElementById('btnYoklamaEkle').textContent = "📲 Admin WP (İşle)";
     } else {
         document.body.className = 'admin-mode';
         document.getElementById('tableTitle').innerHTML = `Öğrenci Listesi <span class="badge" id="studentCount">0 Öğrenci</span>`;
         document.getElementById('btnTahsilEt').textContent = "Tahsil Et (Kasaya İşle)";
+        document.getElementById('btnYoklamaEkle').textContent = "Ekle";
         checkUrlParameters(); // Akıllı Link kontrolü sadece Admin girişi yapınca çalışır
     }
     
@@ -262,31 +281,59 @@ function loginAs(role) {
     renderTable();
 }
 
-window.onload = () => { populateTeacherSelect(); };
+function logout() {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    currentUserRole = 'admin';
+    currentTeacherName = '';
+}
+
+window.onload = () => { 
+    populateTeacherSelect(); 
+    document.getElementById('setAdminPhone').value = adminPhone;
+};
+
+// ================= YÖNETİCİ NUMARASI KAYDETME =================
+function saveAdminPhone() {
+    const phone = document.getElementById('setAdminPhone').value;
+    if(phone.length < 10) return alert("Lütfen geçerli bir telefon numarası girin.");
+    localStorage.setItem('kursAdminPhone', phone);
+    adminPhone = phone;
+    alert("Yönetici WhatsApp numarası başarıyla kaydedildi!");
+}
 
 // ================= AKILLI LİNK (WP ONAY) SİSTEMİ =================
 function checkUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
     const islem = urlParams.get('islem');
     
-    if (islem === 'tahsilat' && currentUserRole === 'admin') {
+    if (currentUserRole === 'admin' && islem) {
         const ogrenciId = parseInt(urlParams.get('ogrenciId'));
         const dersId = parseInt(urlParams.get('dersId'));
-        const tutar = parseFloat(urlParams.get('tutar'));
-        const tarih = urlParams.get('tarih');
-        
         const student = students[ogrenciId];
+        
         if(student && student.dersKayitlari[dersId]) {
             const ders = student.dersKayitlari[dersId];
-            if(confirm(`⚠️ DİKKAT BİLDİRİMİ\n\nÖğretmen ${ders.ogretmen}, ${student.adSoyad} isimli öğrenciden ${formatMoney(tutar)} tahsilat bildirdi.\n\nBu tutar KASAYA İŞLENSİN Mİ?`)) {
-                ders.odemeler.push({ tarih: tarih, miktar: tutar });
-                saveData();
-                alert("Tahsilat başarıyla onaylandı ve kasaya işlendi!");
-                window.history.replaceState({}, document.title, window.location.pathname); // Linki temizle
-                renderTable();
-            } else {
-                window.history.replaceState({}, document.title, window.location.pathname); // İptalde de linki temizle
+            
+            if (islem === 'tahsilat') {
+                const tutar = parseFloat(urlParams.get('tutar'));
+                const tarih = urlParams.get('tarih');
+                if(confirm(`⚠️ DİKKAT BİLDİRİMİ\n\nÖğretmen ${ders.ogretmen}, ${student.adSoyad} isimli öğrenciden ${formatMoney(tutar)} tahsilat bildirdi.\n\nBu tutar KASAYA İŞLENSİN Mİ?`)) {
+                    ders.odemeler.push({ tarih: tarih, miktar: tutar });
+                    saveData();
+                    alert("Tahsilat başarıyla onaylandı ve kasaya işlendi!");
+                }
+            } else if (islem === 'yoklama') {
+                const saat = parseFloat(urlParams.get('saat'));
+                const durum = urlParams.get('durum');
+                const tarih = urlParams.get('tarih');
+                if(confirm(`⚠️ DİKKAT BİLDİRİMİ\n\nÖğretmen ${ders.ogretmen}, ${student.adSoyad} isimli öğrenci için ${saat} Saat (${durum}) yoklama bildirdi.\n\nBu kayıt SİSTEME İŞLENSİN Mİ?`)) {
+                    ders.katilimlar.push({ tarih: tarih, durum: durum, saat: saat });
+                    saveData();
+                    alert("Yoklama başarıyla onaylandı ve sisteme işlendi!");
+                }
             }
+            window.history.replaceState({}, document.title, window.location.pathname); // Linki temizle
+            renderTable();
         }
     }
 }
@@ -381,7 +428,6 @@ function editStudent(index) {
 }
 
 // ================= DİNAMİK TABLO İŞLEMLERİ =================
-// PDF'TEKİ NaN HATASI BURADAKİ EKSİK VERİ ÇIKIŞINDAN DÜZELTİLDİ
 function getDersFinans(ders) {
     let toplamGelinensaat = 0;
     (ders.katilimlar || []).forEach(k => { if(k.durum === 'Geldi') toplamGelinensaat += (parseFloat(k.saat) || 1); });
@@ -392,8 +438,8 @@ function getDersFinans(ders) {
     
     return { 
         toplamGelinensaat, 
-        toplamDersUcreti, // PDF için gerekli eklendi
-        toplamOdenen,     // PDF için gerekli eklendi
+        toplamDersUcreti, 
+        toplamOdenen,     
         guncelBorc: (toplamDersUcreti - toplamOdenen) 
     };
 }
@@ -412,21 +458,18 @@ function updateTableRowStats(selectEl, studentIndex) {
 function renderTable() {
     const tableBody = document.getElementById('studentTableBody');
     tableBody.innerHTML = '';
-    
     let gorunenOgrenciSayisi = 0;
 
     students.forEach((student, index) => {
-        // Öğretmen modundaysa, sadece kendi dersini alan öğrencileri filtrele
         let ogretmeninDersleri = student.dersKayitlari;
         if (currentUserRole === 'teacher') {
             ogretmeninDersleri = student.dersKayitlari.filter(d => d.ogretmen === currentTeacherName);
-            if (ogretmeninDersleri.length === 0) return; // Öğrenci bu öğretmenden ders almıyorsa satırı atla
+            if (ogretmeninDersleri.length === 0) return; 
         }
 
         gorunenOgrenciSayisi++;
         let optionsHtml = '';
         
-        // Öğretmen sadece kendi derslerini dropdown'da görür, Admin hepsini görür
         student.dersKayitlari.forEach((d, i) => { 
             if(currentUserRole === 'admin' || d.ogretmen === currentTeacherName) {
                 optionsHtml += `<option value="${i}">${d.brans} (${d.ogretmen})</option>`; 
@@ -466,7 +509,6 @@ function openDetailModal(index) {
     
     const cSelect = document.getElementById('modalCourseSelect');
     cSelect.innerHTML = '';
-    
     student.dersKayitlari.forEach((d, i) => { 
         if(currentUserRole === 'admin' || d.ogretmen === currentTeacherName) {
             cSelect.innerHTML += `<option value="${i}">${d.brans} (${d.ogretmen})</option>`; 
@@ -507,23 +549,32 @@ function renderModalLists() {
     aktifDers.katilimlar.sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
     aktifDers.odemeler.sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
 
+    // YENİ: Veliye Manuel Bildirim İkonu ve Herkese Açık Çöp Kutusu
     const attList = document.getElementById('attendanceList');
     attList.innerHTML = '';
     aktifDers.katilimlar.forEach((k, idx) => {
+        let wpBtn = (k.durum === 'Geldi' && student.veliTel) ? `<a href="#" onclick="notifyParent('${k.tarih}', ${k.saat}, '${aktifDers.brans}', '${student.veliTel}', '${student.adSoyad}'); return false;" title="Veliye WP Gönder" style="text-decoration:none; margin-right:10px; font-size:1.2rem;">💬</a>` : '';
         attList.innerHTML += `<div class="history-item">
             <span>📅 ${formatDate(k.tarih)} - ${k.saat || 1} Saat - <strong style="color:${k.durum === 'Geldi'?'var(--success)':'var(--danger)'}">${k.durum}</strong></span>
-            <button class="btn-icon admin-only" onclick="removeAttendance(${idx})">🗑️</button></div>`;
+            <div>${wpBtn}<button class="btn-icon" onclick="removeAttendance(${idx})">🗑️</button></div></div>`;
     });
     if(aktifDers.katilimlar.length === 0) attList.innerHTML = '<div style="padding:10px; color:grey;">Kayıt yok.</div>';
 
+    // YENİ: Herkese Açık Çöp Kutusu (Ödeme)
     const payList = document.getElementById('paymentList');
     payList.innerHTML = '';
     aktifDers.odemeler.forEach((o, idx) => {
         payList.innerHTML += `<div class="history-item">
             <span>💰 ${formatDate(o.tarih)} Tahsilat: <strong>${formatMoney(o.miktar)}</strong></span>
-            <button class="btn-icon admin-only" onclick="removePayment(${idx})">🗑️</button></div>`;
+            <div><button class="btn-icon" onclick="removePayment(${idx})">🗑️</button></div></div>`;
     });
     if(aktifDers.odemeler.length === 0) payList.innerHTML = '<div style="padding:10px; color:grey;">Kayıt yok.</div>';
+}
+
+function notifyParent(tarih, saat, brans, tel, adSoyad) {
+    let mesaj = `Sayın velimiz, öğrenciniz ${adSoyad}, ${formatDate(tarih)} tarihinde ${brans} dersine (${saat} saat) başarıyla katılmıştır.`;
+    let wpUrl = `https://wa.me/90${tel}?text=${encodeURIComponent(mesaj)}`;
+    window.open(wpUrl, '_blank');
 }
 
 function addAttendanceLog() {
@@ -535,17 +586,19 @@ function addAttendanceLog() {
     
     const student = students[activeStudentIndex];
     const ders = student.dersKayitlari[cIndex];
-    
-    ders.katilimlar.push({ tarih, durum, saat });
-    saveData(); renderModalLists(); renderTable();
-    
-    // YOKLAMA WP BİLDİRİMİ OTOMASYONU
-    if (durum === 'Geldi' && student.veliTel) {
-        if(confirm("Yoklama eklendi. Veliye WhatsApp üzerinden katılım bildirimi göndermek ister misiniz?")) {
-            let mesaj = `Sayın velimiz, öğrenciniz ${student.adSoyad}, ${formatDate(tarih)} tarihinde ${ders.brans} dersine (${saat} saat) başarıyla katılmıştır.`;
-            let wpUrl = `https://wa.me/90${student.veliTel}?text=${encodeURIComponent(mesaj)}`;
-            window.open(wpUrl, '_blank');
-        }
+
+    if (currentUserRole === 'teacher') {
+        if(!adminPhone) { alert("Yönetici numarası tanımlanmamış. Lütfen yöneticiye bildirin."); return; }
+        const baseUrl = window.location.origin + window.location.pathname;
+        const onayLinki = `${baseUrl}?islem=yoklama&ogrenciId=${activeStudentIndex}&dersId=${cIndex}&saat=${saat}&durum=${durum}&tarih=${tarih}`;
+        let mesaj = `Sn. Yönetici,\n${student.adSoyad} isimli öğrenci ${ders.brans} dersine katıldı (${saat} Saat - ${durum}).\n\nSisteme/Kasaya işlemek için lütfen aşağıdaki linke tıklayınız:\n\n${onayLinki}`;
+        let wpUrl = `https://wa.me/90${adminPhone}?text=${encodeURIComponent(mesaj)}`;
+        
+        window.open(wpUrl, '_blank');
+        closeDetailModal();
+    } else {
+        ders.katilimlar.push({ tarih, durum, saat });
+        saveData(); renderModalLists(); renderTable();
     }
 }
 
@@ -559,18 +612,17 @@ function addPaymentLog() {
     const ders = student.dersKayitlari[cIndex];
 
     if (currentUserRole === 'teacher') {
-        // AKILLI LİNK ÜRETİMİ (ÖĞRETMEN MODU)
+        if(!adminPhone) { alert("Yönetici numarası tanımlanmamış. Lütfen yöneticiye bildirin."); return; }
         const baseUrl = window.location.origin + window.location.pathname;
         const onayLinki = `${baseUrl}?islem=tahsilat&ogrenciId=${activeStudentIndex}&dersId=${cIndex}&tutar=${miktar}&tarih=${tarih}`;
         
         let mesaj = `Sn. Yönetici,\n${student.adSoyad} isimli öğrenciden ${ders.brans} dersi için ${formatMoney(miktar)} elden tahsilat alınmıştır.\n\nSisteme/Kasaya işlemek için lütfen aşağıdaki linke tıklayınız:\n\n${onayLinki}`;
-        let wpUrl = `https://wa.me/?text=${encodeURIComponent(mesaj)}`;
+        let wpUrl = `https://wa.me/90${adminPhone}?text=${encodeURIComponent(mesaj)}`;
         
         window.open(wpUrl, '_blank');
         document.getElementById('logOdemeMiktar').value = '';
         closeDetailModal();
     } else {
-        // NORMAL KAYIT (ADMİN MODU)
         ders.odemeler.push({ tarih, miktar });
         saveData(); renderModalLists(); renderTable();
         document.getElementById('logOdemeMiktar').value = '';
@@ -578,14 +630,14 @@ function addPaymentLog() {
 }
 
 function removeAttendance(idx) {
-    if(confirm('Silmek istediğinize emin misiniz?')) {
+    if(confirm('Seçili yoklamayı silmek istediğinize emin misiniz?')) {
         const cIndex = document.getElementById('modalCourseSelect').value;
         students[activeStudentIndex].dersKayitlari[cIndex].katilimlar.splice(idx, 1);
         saveData(); renderModalLists(); renderTable();
     }
 }
 function removePayment(idx) {
-    if(confirm('Silmek istediğinize emin misiniz?')) {
+    if(confirm('Seçili tahsilatı silmek istediğinize emin misiniz?')) {
         const cIndex = document.getElementById('modalCourseSelect').value;
         students[activeStudentIndex].dersKayitlari[cIndex].odemeler.splice(idx, 1);
         saveData(); renderModalLists(); renderTable();
@@ -593,6 +645,7 @@ function removePayment(idx) {
 }
 
 // ================= PDF EKSTRE RAPORU =================
+// YENİ: Başlıklar ve değerler alt alta olacak şekilde (<br> etiketi eklendi)
 function generateAdvancedPDF() {
     const student = students[activeStudentIndex];
     let genelToplamBorc = 0;
@@ -620,11 +673,13 @@ function generateAdvancedPDF() {
                 <strong>${d.brans} Dersi</strong> - Öğretmen: ${d.ogretmen} <span style="float:right; color:#ef4444;">Ders Borcu: ${formatMoney(fin.guncelBorc)}</span>
             </div>
             <div style="padding: 15px; font-size: 13px;">
-                <table style="width:100%; margin-bottom: 15px;">
-                    <tr><td><strong>Saat Ücreti:</strong> ${formatMoney(d.ucret)}</td>
-                        <td><strong>İşlenen Saat:</strong> ${fin.toplamGelinensaat} Saat</td>
-                        <td><strong>Hak Ediş:</strong> ${formatMoney(fin.toplamDersUcreti)}</td>
-                        <td><strong>Tahsil Edilen:</strong> ${formatMoney(fin.toplamOdenen)}</td></tr>
+                <table style="width:100%; margin-bottom: 15px; text-align: left;">
+                    <tr>
+                        <td><strong>Saat Ücreti:</strong><br>${formatMoney(d.ucret)}</td>
+                        <td><strong>İşlenen Saat:</strong><br>${fin.toplamGelinensaat} Saat</td>
+                        <td><strong>Hak Ediş:</strong><br>${formatMoney(fin.toplamDersUcreti)}</td>
+                        <td><strong>Tahsil Edilen:</strong><br>${formatMoney(fin.toplamOdenen)}</td>
+                    </tr>
                 </table>
                 <div style="display:flex; gap:20px;">
                     <div style="flex:1;">
@@ -670,7 +725,7 @@ function importBackup(event) {
             renderCourseCheckboxes(); renderTable(); alert("Yedek yüklendi!");
         } catch(err) { alert("Hatalı dosya!"); }
     }; reader.readAsText(file); event.target.value = '';
-} 
+}
     </script>
 </body>
 </html>
