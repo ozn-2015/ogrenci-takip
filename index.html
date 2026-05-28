@@ -228,7 +228,7 @@
     </div>
     
     <script>
-        // VERİTABANI YÜKLEME VE GLOBAL DEĞİŞKENLER
+       // VERİTABANI YÜKLEME VE GLOBAL DEĞİŞKENLER
 let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
 let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
 let adminPhone = localStorage.getItem('kursAdminPhone') || '';
@@ -237,7 +237,7 @@ let editCourseIndex = -1;
 let currentUserRole = 'admin'; 
 let currentTeacherName = '';
 
-// V6'DAN MIGRATION (GEÇİŞ) KONTROLÜ
+// V6'DAN MIGRATION KONTROLÜ
 let dataUpdated = false;
 students.forEach(student => {
     if (!student.dersKayitlari) {
@@ -274,21 +274,23 @@ function loginAs(role) {
     }
     document.getElementById('loginOverlay').style.display = 'none';
     renderCourseCheckboxes(); renderTable();
-    checkUrlParameters();
 }
 
 function logout() { 
     document.getElementById('loginOverlay').style.display = 'flex'; 
     currentUserRole = 'admin'; 
     currentTeacherName = ''; 
-    populateTeacherSelect(); // Çıkışta listeyi güncelle
+    populateTeacherSelect();
 }
 
 window.onload = () => { 
     populateTeacherSelect(); 
     document.getElementById('setAdminPhone').value = adminPhone; 
-    // Sayfa açıldığında URL kontrolü yap (Öğretmen ilk kez linke tıkladıysa)
     if(window.location.search.includes('islem=transfer')) {
+        checkUrlParameters();
+    } else if(window.location.search.includes('islem=')) {
+        // Transfer değilse ve admin ise işlem yap
+        loginAs('admin');
         checkUrlParameters();
     }
 };
@@ -300,13 +302,13 @@ function saveAdminPhone() {
     alert("Yönetici WhatsApp numarası başarıyla kaydedildi!");
 }
 
-// ================= AKILLI LİNK KONTROLÜ (TRANSFER, YOKLAMA, TAHSİLAT) =================
+// ================= AKILLI LİNK KONTROLÜ (OTOMATİK GİRİŞ SİSTEMİ EKLENDİ) =================
 function checkUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
     const islem = urlParams.get('islem');
     if(!islem) return;
 
-    // YENİ: OTOMATİK PROFİL KURULUMLU TRANSFER SİSTEMİ
+    // YENİ: OTOMATİK ÖĞRETMEN GİRİŞLİ TRANSFER SİSTEMİ
     if (islem === 'transfer') {
         const dataStr = urlParams.get('data');
         if (dataStr) {
@@ -314,43 +316,40 @@ function checkUrlParameters() {
                 const newStudent = JSON.parse(decodeURIComponent(atob(dataStr)));
                 if (confirm(`Yöneticinin gönderdiği "${newStudent.adSoyad}" isimli öğrenciyi listenize kaydetmek istiyor musunuz?`)) {
                     let exists = students.find(s => s.adSoyad === newStudent.adSoyad);
-                    if (exists) { 
-                        alert("Bu öğrenci zaten listenizde kayıtlı!"); 
-                    } else { 
-                        // ÖĞRETMEN PROFİLİNİ OTOMATİK OLUŞTURMA (Eğer yoksa)
+                    
+                    if (!exists) { 
+                        // Profil oluşturma (Eğer öğretmenin ilk girişiyse)
                         let teacherAdded = false;
                         newStudent.dersKayitlari.forEach(d => {
                             let courseExists = coursesDB.find(c => c.brans === d.brans && c.ogretmen === d.ogretmen);
                             if (!courseExists) {
-                                coursesDB.push({
-                                    id: Date.now() + Math.floor(Math.random() * 1000),
-                                    brans: d.brans,
-                                    ogretmen: d.ogretmen,
-                                    ogretmenTel: '', 
-                                    ucret: d.ucret
-                                });
+                                coursesDB.push({ id: Date.now() + Math.floor(Math.random() * 1000), brans: d.brans, ogretmen: d.ogretmen, ogretmenTel: '', ucret: d.ucret });
                                 teacherAdded = true;
                             }
                         });
                         
                         if(teacherAdded) {
                             localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
-                            populateTeacherSelect(); // Açılır listeyi hemen güncelle
+                            populateTeacherSelect(); 
                         }
-
                         students.push(newStudent); 
                         saveData(); 
-                        renderTable(); 
-                        
-                        alert("Öğrenci başarıyla listenize eklendi!\n\nLütfen giriş ekranındaki listeden isminizi seçerek 'Öğretmen Olarak Devam Et' butonuna tıklayın.");
-                        document.getElementById('loginOverlay').style.display = 'flex'; // Giriş ekranına yönlendir
+                        alert("Öğrenci başarıyla listenize eklendi!");
+                    } else {
+                        alert("Bu öğrenci zaten listenizde kayıtlı. Öğretmen panelinize yönlendiriliyorsunuz.");
                     }
+
+                    // MUHTEŞEM DOKUNUŞ: Öğretmeni otomatik olarak kendi paneline al
+                    let teacherName = newStudent.dersKayitlari[0].ogretmen;
+                    const select = document.getElementById('loginTeacherSelect');
+                    select.value = teacherName;
+                    loginAs('teacher'); // Doğrudan öğretmen olarak sistemi aç
                 }
             } catch(e) { 
                 alert("Transfer linki geçersiz veya bozuk."); 
             }
         }
-        window.history.replaceState({}, document.title, window.location.pathname); // Linki temizle
+        window.history.replaceState({}, document.title, window.location.pathname); // Linki URL'den temizle
         return;
     }
 
@@ -488,10 +487,8 @@ function editStudent(index) {
     document.getElementById('cancelEditBtn').style.display = "block"; window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
-// BULUTSUZ ÖĞRENCİ TRANSFER SİSTEMİ (ADMİN -> ÖĞRETMEN)
 function transferStudent(index) {
     const student = students[index];
-    // Sadece temel bilgileri ve boş ders kayıtlarını al
     let sData = {
         adSoyad: student.adSoyad, okul: student.okul, veliAd: student.veliAd, veliTel: student.veliTel,
         dersKayitlari: student.dersKayitlari.map(d => ({
@@ -677,7 +674,6 @@ function addPaymentLog() {
 function removeAttendance(idx) { if(confirm('Seçili yoklamayı silmek istediğinize emin misiniz?')) { students[activeStudentIndex].dersKayitlari[document.getElementById('modalCourseSelect').value].katilimlar.splice(idx, 1); saveData(); renderModalLists(); renderTable(); } }
 function removePayment(idx) { if(confirm('Seçili tahsilatı silmek istediğinize emin misiniz?')) { students[activeStudentIndex].dersKayitlari[document.getElementById('modalCourseSelect').value].odemeler.splice(idx, 1); saveData(); renderModalLists(); renderTable(); } }
 
-// ================= PDF EKSTRE RAPORU =================
 function generateAdvancedPDF() {
     const student = students[activeStudentIndex]; let genelToplamBorc = 0;
     student.dersKayitlari.forEach(d => { genelToplamBorc += getDersFinans(d).guncelBorc; });
@@ -717,7 +713,7 @@ function importBackup(event) {
     reader.onload = function(e) {
         try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); renderCourseCheckboxes(); renderTable(); alert("Yedek yüklendi!"); } catch(err) { alert("Hatalı dosya!"); }
     }; reader.readAsText(event.target.files[0]); event.target.value = '';
-}
+} 
     </script>
 </body>
 </html>
