@@ -31,7 +31,7 @@
         button:hover { background-color: #1d4ed8; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.1); }
-        th { background-color: #f1f5f9; font-weight: 600; }
+        th { background-color: rgba(241, 245, 249, 0.8); font-weight: 600; }
         
         .actions { display: flex; flex-wrap: wrap; gap: 4px; }
         .actions button { width: auto; padding: 6px 10px; font-size: 0.8rem; margin: 0; }
@@ -41,7 +41,7 @@
         .btn-settings { background-color: #475569; margin-bottom: 15px; }
         
         .backup-section { margin-top: 25px; padding-top: 20px; border-top: 2px dashed var(--border); }
-        .badge { background: #fff; border: 1px solid #ccc; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .badge { background: #fff; border: 1px solid #ccc; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; margin-bottom: 3px; }
 
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-content { background-color: var(--surface); padding: 25px; border-radius: 12px; width: 85%; max-width: 1000px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
@@ -101,7 +101,7 @@
     </div>
     
     <div class="top-bar">
-        <img src="logo.png" width="80" style="margin-right: 15px;">
+        <img src="logo.png" width="80" style="margin-right: 15px;" onerror="this.style.display='none'">
         <h1 class="main-header">🎓 KURS TAKİP ASİSTANI</h1>
         <button class="btn-logout" onclick="logout()">🚪 Çıkış / Rol Değiştir</button>
     </div>
@@ -147,7 +147,7 @@
         </div>
 
         <div class="panel">
-            <h2 id="tableTitle">Öğrenci Listesi <span class="badge" id="studentCount">0 Öğrenci</span></h2>
+            <h2 id="tableTitle">Öğrenci Listesi <span class="badge" id="studentCount" style="background:#e2e8f0; border:none;">0 Öğrenci</span></h2>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -246,7 +246,7 @@
     </div>
 
     <script>
-        // ORİJİNAL VERİ TABANI YAPISI (HİÇ DOKUNULMADI)
+        // ORİJİNAL VERİ TABANI YAPISI (courses değil, dersKayitlari kullanılarak)
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
         let adminPhone = localStorage.getItem('kursAdminPhone') || "";
@@ -258,7 +258,7 @@
         const colorPalette = ['#dcfce7', '#dbeafe', '#fef08a', '#ffedd5', '#f3e8ff', '#ffe4e6', '#ccfbf1', '#e0e7ff'];
         let colorIndex = 0;
         function getCampusColor(campusName) {
-            if (!campusName) return '#ffffff'; // Varsayılan boşsa beyaz
+            if (!campusName) return '#ffffff';
             let key = campusName.trim().toUpperCase();
             if (!campusColors[key]) {
                 campusColors[key] = colorPalette[colorIndex % colorPalette.length];
@@ -281,28 +281,37 @@
             });
         }
 
-        // ORİJİNAL YAPININ KORUNDUĞU GÖÇ FONKSİYONU
+        // ORİJİNAL YAPININ KORUNDUĞU GÖÇ VE ONARIM FONKSİYONU
         function migrateOldData() {
             let needsSave = false;
             students.forEach(s => {
-                if (s.sinifOkul) {
-                    s.okul = s.sinifOkul;
-                    s.sinif = s.sinifOkul.replace(/[^0-9]/g, '') || "0";
-                    delete s.sinifOkul;
-                    needsSave = true;
-                }
+                if (s.sinifOkul) { s.okul = s.sinifOkul; s.sinif = s.sinifOkul.replace(/[^0-9]/g, '') || "0"; delete s.sinifOkul; needsSave = true; }
                 if (!s.kampus) { s.kampus = "Merkez"; needsSave = true; }
                 if (s.ogrenciTel === undefined) { s.ogrenciTel = ""; needsSave = true; }
+                
+                // Hatalı koddaki "courses" yapısını, orijinal "dersKayitlari" yapısına onarma
+                if (s.courses && !s.dersKayitlari) {
+                    s.dersKayitlari = s.courses.map(c => {
+                        let info = coursesDB.find(x => x.id === c.courseId) || {};
+                        return {
+                            courseId: c.courseId,
+                            brans: info.brans || 'Bilinmiyor',
+                            ogretmen: info.ogretmen || '',
+                            ucret: info.ucret || 0,
+                            katilimlar: (c.attendance || []).map(a => ({ tarih: a.date, saat: a.hours, durum: a.status, veliBildirildi: a.veliBildirildi||false, adminBildirildi: a.adminBildirildi||false })),
+                            odemeler: (c.payments || []).map(p => ({ tarih: p.date, miktar: p.amount, adminBildirildi: p.adminBildirildi||false }))
+                        };
+                    });
+                    delete s.courses;
+                    needsSave = true;
+                }
             });
-            if (needsSave) {
-                sortStudents();
-                saveData();
-            }
+            if (needsSave) { sortStudents(); saveData(); }
         }
 
         window.onload = () => {
             migrateOldData();
-            checkUrlParameters(); // Orijinal URL sistemi
+            checkUrlParameters(); 
             checkLoginStatus();
             document.getElementById('setAdminPhone').value = adminPhone;
             sortStudents();
@@ -311,13 +320,13 @@
             renderSettingsTable();
         };
 
-        // ORİJİNAL AKILLI LİNK VE ONAY SİSTEMİ
+        // ORİJİNAL AKILLI LİNK VE ONAY SİSTEMİ (Yönetici Paneline Otomatik İşler)
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
             const islem = urlParams.get('islem');
             if (!islem) return;
 
-            // Şifreli Transfer
+            // Şifreli Transfer (Öğretmen Tıkladığında)
             if (islem === 'transfer') {
                 const dataStr = urlParams.get('data');
                 if (dataStr) {
@@ -330,65 +339,59 @@
                         alert(`✅ ${newStudent.adSoyad} başarıyla sisteme aktarıldı!`);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         renderTable();
-                    } catch (e) {
-                        alert("Transfer verisi hatalı veya bozuk!");
-                    }
+                    } catch (e) { alert("Transfer verisi hatalı veya bozuk!"); }
                 }
                 return;
             }
 
-            // Yoklama Onay
+            // Yoklama Onay (Yönetici Tıkladığında)
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad === ogrAd);
                 if(student) {
-                    const sc = student.courses.find(c => c.courseId === courseId);
+                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
                     if(sc) {
-                        sc.attendance.push({
-                            date: urlParams.get('tarih'),
-                            hours: parseInt(urlParams.get('saat')),
-                            status: urlParams.get('durum'),
+                        sc.katilimlar.push({
+                            tarih: urlParams.get('tarih'),
+                            saat: parseInt(urlParams.get('saat')),
+                            durum: urlParams.get('durum'),
                             veliBildirildi: false,
                             adminBildirildi: true
                         });
                         saveData();
-                        alert(`✅ Yoklama Onaylandı: ${ogrAd} (${urlParams.get('durum')})`);
+                        alert(`✅ Yoklama Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('durum')})`);
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
 
-            // Tahsilat Onay
+            // Tahsilat Onay (Yönetici Tıkladığında)
             if (islem === 'tahsilat') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad === ogrAd);
                 if(student) {
-                    const sc = student.courses.find(c => c.courseId === courseId);
+                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
                     if(sc) {
-                        sc.payments.push({
-                            date: urlParams.get('tarih'),
-                            amount: parseFloat(urlParams.get('miktar')),
+                        sc.odemeler.push({
+                            tarih: urlParams.get('tarih'),
+                            miktar: parseFloat(urlParams.get('miktar')),
                             adminBildirildi: true
                         });
                         saveData();
-                        alert(`✅ Tahsilat Onaylandı: ${ogrAd} (${urlParams.get('miktar')} ₺)`);
+                        alert(`✅ Tahsilat Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('miktar')} ₺)`);
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
 
-        // GİRİŞ SİSTEMİ
         function checkLoginStatus() {
             populateTeacherSelect();
             const urlParams = new URLSearchParams(window.location.search);
             const teacherLink = urlParams.get('teacher');
-            if(teacherLink) {
-                currentTeacher = decodeURIComponent(teacherLink);
-                loginAs('teacher', true);
-            }
+            if(teacherLink) { currentTeacher = decodeURIComponent(teacherLink); loginAs('teacher', true); }
         }
         function populateTeacherSelect() {
             const select = document.getElementById('loginTeacherSelect');
@@ -403,29 +406,17 @@
                     if (!currentTeacher) { alert("Lütfen bir öğretmen seçin!"); return; }
                 }
                 document.body.className = 'teacher-mode';
-            } else {
-                document.body.className = 'admin-mode';
-                currentTeacher = '';
-            }
+            } else { document.body.className = 'admin-mode'; currentTeacher = ''; }
             currentUser = role;
             document.getElementById('loginOverlay').style.display = 'none';
             renderTable();
             if(!fromLink) { window.history.replaceState({}, document.title, window.location.pathname); }
         }
-        function logout() {
-            document.getElementById('loginOverlay').style.display = 'flex';
-            currentTeacher = '';
-            populateTeacherSelect();
-        }
+        function logout() { document.getElementById('loginOverlay').style.display = 'flex'; currentTeacher = ''; populateTeacherSelect(); }
 
-        // AYARLAR VE DERS YÖNETİMİ
         function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
-        function saveAdminPhone() {
-            adminPhone = document.getElementById('setAdminPhone').value;
-            localStorage.setItem('kursAdminPhone', adminPhone);
-            alert("Yönetici numarası kaydedildi.");
-        }
+        function saveAdminPhone() { adminPhone = document.getElementById('setAdminPhone').value; localStorage.setItem('kursAdminPhone', adminPhone); alert("Yönetici numarası kaydedildi."); }
         function addCourseSetting() {
             const brans = document.getElementById('setBrans').value.trim();
             const ogretmen = document.getElementById('setOgretmen').value.trim();
@@ -435,37 +426,21 @@
             coursesDB.push({ id: Date.now().toString(), brans, ogretmen, ogretmenTel, ucret });
             localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
             renderSettingsTable(); renderCourseCheckboxes();
-            document.getElementById('setBrans').value = '';
-            document.getElementById('setOgretmen').value = '';
-            document.getElementById('setOgretmenTel').value = '';
-            document.getElementById('setUcret').value = '';
+            document.getElementById('setBrans').value = ''; document.getElementById('setOgretmen').value = ''; document.getElementById('setOgretmenTel').value = ''; document.getElementById('setUcret').value = '';
             populateTeacherSelect();
         }
-        function deleteCourseSetting(index) {
-            coursesDB.splice(index, 1);
-            localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
-            renderSettingsTable(); renderCourseCheckboxes(); populateTeacherSelect();
-        }
+        function deleteCourseSetting(index) { coursesDB.splice(index, 1); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); renderSettingsTable(); renderCourseCheckboxes(); populateTeacherSelect(); }
         function renderSettingsTable() {
-            const tbody = document.getElementById('settingsTableBody');
-            tbody.innerHTML = '';
-            coursesDB.forEach((c, index) => {
-                tbody.innerHTML += `<tr>
-                    <td>${c.brans}</td><td>${c.ogretmen}</td><td>${c.ogretmenTel || '-'}</td><td>${c.ucret} ₺</td>
-                    <td><button class="btn-icon" onclick="deleteCourseSetting(${index})">🗑️</button></td>
-                </tr>`;
-            });
+            const tbody = document.getElementById('settingsTableBody'); tbody.innerHTML = '';
+            coursesDB.forEach((c, index) => { tbody.innerHTML += `<tr><td>${c.brans}</td><td>${c.ogretmen}</td><td>${c.ogretmenTel || '-'}</td><td>${c.ucret} ₺</td><td><button class="btn-icon" onclick="deleteCourseSetting(${index})">🗑️</button></td></tr>`; });
         }
         function renderCourseCheckboxes() {
-            const container = document.getElementById('courseCheckboxes');
-            container.innerHTML = '';
+            const container = document.getElementById('courseCheckboxes'); container.innerHTML = '';
             if(coursesDB.length === 0) { container.innerHTML = '<span style="color:var(--danger)">Önce ayarlardan öğretmen ve branş ekleyin!</span>'; return; }
-            coursesDB.forEach(c => {
-                container.innerHTML += `<label><input type="checkbox" name="selectedCourses" value="${c.id}"> ${c.brans} - ${c.ogretmen} (${c.ucret} ₺)</label>`;
-            });
+            coursesDB.forEach(c => { container.innerHTML += `<label><input type="checkbox" name="selectedCourses" value="${c.id}"> ${c.brans} - ${c.ogretmen} (${c.ucret} ₺)</label>`; });
         }
 
-        // ORİJİNAL ÖĞRENCİ KAYDET SİSTEMİ (courseId İLE)
+        // ÖĞRENCİ KAYDET SİSTEMİ (Orijinal dersKayitlari Yapısı)
         document.getElementById('studentForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const editIndex = document.getElementById('editIndex').value;
@@ -475,13 +450,17 @@
             let studentCourses = [];
             let existingCourses = {};
             if(editIndex > -1) { 
-                existingCourses = students[editIndex].courses.reduce((acc, c) => { acc[c.courseId] = c; return acc; }, {}); 
+                existingCourses = students[editIndex].dersKayitlari.reduce((acc, c) => { acc[c.courseId] = c; return acc; }, {}); 
             }
 
             checkboxes.forEach(cb => {
                 const cId = cb.value;
-                if(existingCourses[cId]) { studentCourses.push(existingCourses[cId]); }
-                else { studentCourses.push({ courseId: cId, attendance: [], payments: [] }); }
+                const cInfo = coursesDB.find(x => x.id === cId);
+                if(existingCourses[cId]) { 
+                    studentCourses.push(existingCourses[cId]); 
+                } else if (cInfo) { 
+                    studentCourses.push({ courseId: cInfo.id, brans: cInfo.brans, ogretmen: cInfo.ogretmen, ucret: cInfo.ucret, katilimlar: [], odemeler: [] }); 
+                }
             });
 
             const student = {
@@ -492,25 +471,20 @@
                 okul: document.getElementById('okul').value.trim(),
                 veliAd: document.getElementById('veliAd').value.trim(),
                 veliTel: document.getElementById('veliTel').value.trim(),
-                courses: studentCourses
+                dersKayitlari: studentCourses
             };
 
             if (editIndex === "-1") { students.push(student); } 
-            else { 
-                students[editIndex] = student; 
-                document.getElementById('submitBtn').textContent = "Öğrenciyi Kaydet"; 
-                document.getElementById('cancelEditBtn').style.display = "none"; 
-                document.getElementById('editIndex').value = "-1"; 
-            }
+            else { students[editIndex] = student; document.getElementById('submitBtn').textContent = "Öğrenciyi Kaydet"; document.getElementById('cancelEditBtn').style.display = "none"; document.getElementById('editIndex').value = "-1"; }
 
-            sortStudents(); // Kayıt sonrası otomatik sırala
+            sortStudents();
             saveData();
             renderTable();
             e.target.reset();
             document.getElementById('formTitle').textContent = "Yeni Öğrenci Ekle";
         });
 
-        // ANA TABLO GÖRÜNÜMÜ (ORİJİNAL AÇILIR MENÜ <select> İLE BİRLİKTE)
+        // ANA TABLO GÖRÜNÜMÜ
         function renderTable() {
             const tbody = document.getElementById('studentTableBody');
             tbody.innerHTML = '';
@@ -519,45 +493,33 @@
             students.forEach((student, index) => {
                 let teacherCourses = [];
                 if(currentUser === 'teacher') {
-                    teacherCourses = student.courses.filter(sc => {
-                        const courseInfo = coursesDB.find(c => c.id === sc.courseId);
-                        return courseInfo && courseInfo.ogretmen === currentTeacher;
-                    });
+                    teacherCourses = student.dersKayitlari.filter(sc => sc.ogretmen === currentTeacher);
                     if(teacherCourses.length === 0) return;
                 } else {
-                    teacherCourses = student.courses;
+                    teacherCourses = student.dersKayitlari;
                 }
                 
                 visibleCount++;
 
-                // ORİJİNAL AÇILIR MENÜ MANTIĞI
                 let selectHTML = `<select class="course-select" onchange="updateTableRowStats(this, ${index})" style="width: 100%; padding: 5px; font-size: 0.85rem; border-radius: 4px;">`;
-                teacherCourses.forEach(sc => {
-                    const cInfo = coursesDB.find(c => c.id === sc.courseId);
-                    if(cInfo) { selectHTML += `<option value="${sc.courseId}">${cInfo.brans} (${cInfo.ogretmen})</option>`; }
-                });
+                teacherCourses.forEach(sc => { selectHTML += `<option value="${sc.courseId}">${sc.brans} (${sc.ogretmen})</option>`; });
                 selectHTML += `</select>`;
 
                 let wpVeli = student.veliTel ? `<a href="https://wa.me/90${student.veliTel}" target="_blank" class="wp-btn v-btn" title="Veliye Yaz">👨‍👩‍👦 Veli</a>` : `<span class="wp-btn v-btn disabled-btn">👨‍👩‍👦 Veli</span>`;
                 let wpOgrenci = student.ogrenciTel ? `<a href="https://wa.me/90${student.ogrenciTel}" target="_blank" class="wp-btn s-btn" title="Öğrenciye Yaz">📱 Öğrenci</a>` : `<span class="wp-btn s-btn disabled-btn">📱 Öğrenci</span>`;
 
-                // İLK DERSİN VERİLERİNİ HESAPLAMA
                 let initialBorc = "0 ₺";
                 let initialSaat = "0 Saat";
                 if (teacherCourses.length > 0) {
                     const firstSc = teacherCourses[0];
-                    const cInfo = coursesDB.find(c => c.id === firstSc.courseId);
-                    if (cInfo) {
-                        let islenen = firstSc.attendance.reduce((sum, k) => sum + (k.status === 'Geldi' ? k.hours : 0), 0);
-                        let tahsilat = firstSc.payments.reduce((sum, p) => sum + p.amount, 0);
-                        let borc = (islenen * cInfo.ucret) - tahsilat;
-                        initialSaat = `${islenen} Saat`;
-                        if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${borc} ₺</span>`; } 
-                        else { initialBorc = `<span style="color:var(--success);">Borç Yok</span>`; }
-                    }
+                    let islenen = firstSc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0);
+                    let tahsilat = firstSc.odemeler.reduce((sum, p) => sum + p.miktar, 0);
+                    let borc = (islenen * firstSc.ucret) - tahsilat;
+                    initialSaat = `${islenen} Saat`;
+                    if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${borc} ₺</span>`; } 
+                    else { initialBorc = `<span style="color:var(--success);">Borç Yok</span>`; }
                 }
 
-                // TÜM SATIRI KAMPÜS RENGİNE BOYAMA İŞLEMİ
                 let rowColor = getCampusColor(student.kampus);
 
                 tbody.innerHTML += `
@@ -583,23 +545,18 @@
             });
             document.getElementById('studentCount').textContent = `${visibleCount} Öğrenci`;
             
-            // Tablo yüklendiğinde hesaplamaları anlık güncelle
-            document.querySelectorAll('.course-select').forEach(select => {
-                select.dispatchEvent(new Event('change'));
-            });
+            document.querySelectorAll('.course-select').forEach(select => { select.dispatchEvent(new Event('change')); });
         }
 
-        // TABLO AÇILIR MENÜSÜ GÜNCELLEME SİSTEMİ
         function updateTableRowStats(selectElement, studentIndex) {
             const courseId = selectElement.value;
             const student = students[studentIndex];
-            const sc = student.courses.find(c => c.courseId === courseId);
-            const cInfo = coursesDB.find(c => c.id === courseId);
+            const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
             
-            if (sc && cInfo) {
-                let islenen = sc.attendance.reduce((sum, k) => sum + (k.status === 'Geldi' ? k.hours : 0), 0);
-                let tahsilat = sc.payments.reduce((sum, p) => sum + p.amount, 0);
-                let borc = (islenen * cInfo.ucret) - tahsilat;
+            if (sc) {
+                let islenen = sc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0);
+                let tahsilat = sc.odemeler.reduce((sum, p) => sum + p.miktar, 0);
+                let borc = (islenen * sc.ucret) - tahsilat;
                 
                 document.getElementById(`saat_td_${studentIndex}`).textContent = `${islenen} Saat`;
                 if (borc > 0) { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--danger); font-weight:bold;">${borc} ₺</span>`; } 
@@ -617,23 +574,16 @@
             
             const select = document.getElementById('modalCourseSelect');
             select.innerHTML = '';
-            student.courses.forEach((sc, i) => {
-                const cInfo = coursesDB.find(c => c.id === sc.courseId);
-                if(cInfo) {
-                    if(currentUser === 'teacher' && cInfo.ogretmen !== currentTeacher) return;
-                    select.innerHTML += `<option value="${i}">${cInfo.brans} - ${cInfo.ogretmen}</option>`;
-                }
+            student.dersKayitlari.forEach((sc, i) => {
+                if(currentUser === 'teacher' && sc.ogretmen !== currentTeacher) return;
+                select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`;
             });
 
             document.getElementById('logKatilimTarih').valueAsDate = new Date();
             document.getElementById('logOdemeTarih').valueAsDate = new Date();
             
-            if(select.options.length > 0) {
-                renderModalLists();
-                document.getElementById('detailModal').style.display = 'flex';
-            } else {
-                alert("Size ait atanmış ders bulunamadı.");
-            }
+            if(select.options.length > 0) { renderModalLists(); document.getElementById('detailModal').style.display = 'flex'; } 
+            else { alert("Size ait atanmış ders bulunamadı."); }
         }
         function closeDetailModal() { document.getElementById('detailModal').style.display = 'none'; renderTable(); }
 
@@ -643,25 +593,24 @@
             const courseIndex = document.getElementById('modalCourseSelect').value;
             if(!courseIndex) return;
             
-            const sc = student.courses[courseIndex];
-            const courseInfo = coursesDB.find(c => c.id === sc.courseId);
-            
+            const sc = student.dersKayitlari[courseIndex];
             let islenen = 0;
+            
             const attList = document.getElementById('attendanceList');
             attList.innerHTML = '';
-            sc.attendance.slice().reverse().forEach((log, revIndex) => {
-                const realIndex = sc.attendance.length - 1 - revIndex;
-                if(log.status === 'Geldi') islenen += log.hours;
-                const statusColor = log.status === 'Geldi' ? 'var(--success)' : 'var(--danger)';
+            sc.katilimlar.slice().reverse().forEach((log, revIndex) => {
+                const realIndex = sc.katilimlar.length - 1 - revIndex;
+                if(log.durum === 'Geldi') islenen += log.saat;
+                const statusColor = log.durum === 'Geldi' ? 'var(--success)' : 'var(--danger)';
                 
-                // ORİJİNAL VELİ (V) VE ADMİN (A) WP TİK SİSTEMİ
+                // YENİ BUTONLAR (V ve Y)
                 let vBtn = (currentUser === 'admin' || currentUser === 'teacher') ? `<a href="#" onclick="notifyParent('yoklama', ${realIndex}); return false;" title="Veliye WP Gönder" class="wp-btn v-btn ${log.veliBildirildi ? 'disabled-btn' : ''}">${log.veliBildirildi ? '✅' : 'V'}</a>` : '';
-                let aBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('yoklama', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'A'}</a>` : '';
+                let yBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('yoklama', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'Y'}</a>` : '';
                 
                 attList.innerHTML += `
                     <div class="history-item">
-                        <span>${log.date} | <strong>${log.hours} Saat</strong> | <span style="color:${statusColor}">${log.status}</span></span>
-                        <div>${vBtn}${aBtn} <button class="btn-icon" onclick="deleteLog('attendance', ${courseIndex}, ${realIndex})">❌</button></div>
+                        <span>${log.tarih} | <strong>${log.saat} Saat</strong> | <span style="color:${statusColor}">${log.durum}</span></span>
+                        <div>${vBtn}${yBtn} <button class="btn-icon" onclick="deleteLog('attendance', ${courseIndex}, ${realIndex})">❌</button></div>
                     </div>
                 `;
             });
@@ -669,52 +618,49 @@
             let tahsilat = 0;
             const payList = document.getElementById('paymentList');
             payList.innerHTML = '';
-            sc.payments.slice().reverse().forEach((log, revIndex) => {
-                const realIndex = sc.payments.length - 1 - revIndex;
-                tahsilat += log.amount;
+            sc.odemeler.slice().reverse().forEach((log, revIndex) => {
+                const realIndex = sc.odemeler.length - 1 - revIndex;
+                tahsilat += log.miktar;
                 
-                let aBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('tahsilat', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'A'}</a>` : '';
+                let yBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('tahsilat', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'Y'}</a>` : '';
 
                 payList.innerHTML += `
                     <div class="history-item">
-                        <span>${log.date} | <strong>${log.amount} ₺</strong></span>
-                        <div>${aBtn} <button class="btn-icon admin-only" onclick="deleteLog('payment', ${courseIndex}, ${realIndex})">❌</button></div>
+                        <span>${log.tarih} | <strong>${log.miktar} ₺</strong></span>
+                        <div>${yBtn} <button class="btn-icon admin-only" onclick="deleteLog('payment', ${courseIndex}, ${realIndex})">❌</button></div>
                     </div>
                 `;
             });
 
-            let hakedis = islenen * courseInfo.ucret;
+            let hakedis = islenen * sc.ucret;
             let borc = hakedis - tahsilat;
             document.getElementById('modalSeciliBorc').textContent = `${borc} ₺`;
 
             if(currentUser === 'admin') {
                 let totalBorc = 0;
                 let tooltipHTML = '';
-                student.courses.forEach(courseItem => {
-                    const cInfo = coursesDB.find(c => c.id === courseItem.courseId);
-                    if(cInfo) {
-                        let cIs = courseItem.attendance.reduce((sum, r) => sum + (r.status==='Geldi'?r.hours:0), 0);
-                        let cTah = courseItem.payments.reduce((sum, r) => sum + r.amount, 0);
-                        let cBorc = (cIs * cInfo.ucret) - cTah;
-                        totalBorc += cBorc;
-                        if(cBorc > 0) tooltipHTML += `<div>${cInfo.brans}: ${cBorc} ₺</div>`;
-                    }
+                student.dersKayitlari.forEach(courseItem => {
+                    let cIs = courseItem.katilimlar.reduce((sum, r) => sum + (r.durum==='Geldi'?r.saat:0), 0);
+                    let cTah = courseItem.odemeler.reduce((sum, r) => sum + r.miktar, 0);
+                    let cBorc = (cIs * courseItem.ucret) - cTah;
+                    totalBorc += cBorc;
+                    if(cBorc > 0) tooltipHTML += `<div>${courseItem.brans}: ${cBorc} ₺</div>`;
                 });
                 document.getElementById('modalToplamBorc').textContent = `${totalBorc} ₺`;
                 document.getElementById('modalTooltipContent').innerHTML = tooltipHTML || 'Tüm dersler ödendi.';
             }
         }
 
-        // ORİJİNAL WP BİLDİRİM FONKSİYONLARI (URL TETİKLEYİCİLİ)
+        // TAM İSTEDİĞİNİZ WP MESAJ VE ONAY FONKSİYONLARI
         function notifyParent(tip, idx) {
             const student = students[currentStudentIndex];
             const courseIndex = document.getElementById('modalCourseSelect').value;
-            const sc = student.courses[courseIndex];
-            const courseInfo = coursesDB.find(c => c.id === sc.courseId);
+            const sc = student.dersKayitlari[courseIndex];
             
             if (tip === 'yoklama') {
-                const k = sc.attendance[idx];
-                let msg = `Merhaba, ${student.adSoyad} isimli öğrencimiz ${k.date} tarihinde ${courseInfo.brans} (${courseInfo.ogretmen}) dersine *${k.status}*.`;
+                const k = sc.katilimlar[idx];
+                // İSTENİLEN FORMAT
+                let msg = `Merhaba, ${student.adSoyad} isimli öğrencimiz ${k.tarih} tarihinde ${sc.brans} (${sc.ogretmen}) dersine *${k.durum}*.`;
                 k.veliBildirildi = true;
                 saveData(); renderModalLists(); renderTable();
                 window.open(`https://wa.me/90${student.veliTel}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -724,82 +670,74 @@
         function notifyAdmin(tip, idx) {
             const student = students[currentStudentIndex];
             const courseIndex = document.getElementById('modalCourseSelect').value;
-            const sc = student.courses[courseIndex];
-            const courseInfo = coursesDB.find(c => c.id === sc.courseId);
+            const sc = student.dersKayitlari[courseIndex];
             const baseUrl = window.location.href.split('?')[0];
             
             if (tip === 'yoklama') {
-                const k = sc.attendance[idx];
-                let msg = `YOKLAMA BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${courseInfo.brans}\nÖğretmen: ${courseInfo.ogretmen}\nTarih: ${k.date}\nDurum: ${k.status}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.date}&saat=${k.hours}&durum=${encodeURIComponent(k.status)}`;
+                const k = sc.katilimlar[idx];
+                let msg = `YOKLAMA BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${k.tarih}\nDurum: ${k.durum}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.tarih}&saat=${k.saat}&durum=${encodeURIComponent(k.durum)}`;
                 k.adminBildirildi = true;
                 saveData(); renderModalLists(); renderTable();
                 window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
             }
             if (tip === 'tahsilat') {
-                const p = sc.payments[idx];
-                let msg = `TAHSİLAT BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${courseInfo.brans}\nÖğretmen: ${courseInfo.ogretmen}\nTarih: ${p.date}\nTutar: ${p.amount} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.date}&miktar=${p.amount}`;
+                const p = sc.odemeler[idx];
+                let msg = `TAHSİLAT BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${p.tarih}\nTutar: ${p.miktar} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.tarih}&miktar=${p.miktar}`;
                 p.adminBildirildi = true;
                 saveData(); renderModalLists(); renderTable();
                 window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
             }
         }
 
-        // İŞLEM (VERİ) EKLEME/SİLME (TAM SAYI YUVARLAMASI İLE)
         function addAttendanceLog() {
-            const date = document.getElementById('logKatilimTarih').value;
-            const hours = Math.round(Number(document.getElementById('logKatilimSaat').value)); // YENİ: Tam Sayıya Yuvarla
-            const status = document.getElementById('logKatilimDurum').value;
+            const tarih = document.getElementById('logKatilimTarih').value;
+            const saat = Math.round(Number(document.getElementById('logKatilimSaat').value)); 
+            const durum = document.getElementById('logKatilimDurum').value;
             const courseIndex = document.getElementById('modalCourseSelect').value;
             
-            if(!date || hours <= 0) return alert("Lütfen geçerli bir tarih ve tam sayı saat girin.");
+            if(!tarih || saat <= 0) return alert("Lütfen geçerli bir tarih ve tam sayı saat girin.");
             
-            students[currentStudentIndex].courses[courseIndex].attendance.push({ date, hours, status, veliBildirildi: false, adminBildirildi: false });
+            students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.push({ tarih, saat, durum, veliBildirildi: false, adminBildirildi: false });
             saveData(); renderModalLists(); renderTable();
         }
 
         function addPaymentLog() {
-            const date = document.getElementById('logOdemeTarih').value;
-            const amount = parseFloat(document.getElementById('logOdemeMiktar').value);
+            const tarih = document.getElementById('logOdemeTarih').value;
+            const miktar = parseFloat(document.getElementById('logOdemeMiktar').value);
             const courseIndex = document.getElementById('modalCourseSelect').value;
             
-            if(!date || !amount || amount <= 0) return alert("Lütfen geçerli tarih ve miktar girin.");
+            if(!tarih || !miktar || miktar <= 0) return alert("Lütfen geçerli tarih ve miktar girin.");
             
-            students[currentStudentIndex].courses[courseIndex].payments.push({ date, amount, adminBildirildi: false });
+            students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.push({ tarih, miktar, adminBildirildi: false });
             saveData(); renderModalLists(); renderTable(); document.getElementById('logOdemeMiktar').value = '';
         }
 
         function deleteLog(type, courseIndex, logIndex) {
             if(confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
-                if(type === 'attendance') students[currentStudentIndex].courses[courseIndex].attendance.splice(logIndex, 1);
-                if(type === 'payment') students[currentStudentIndex].courses[courseIndex].payments.splice(logIndex, 1);
+                if(type === 'attendance') students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.splice(logIndex, 1);
+                if(type === 'payment') students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.splice(logIndex, 1);
                 saveData(); renderModalLists(); renderTable();
             }
         }
 
-        // ORİJİNAL TRANSFER SİSTEMİ (MODAL İÇİNDEN)
+        // ÖĞRETMENE TRANSFER MESAJI (İSTENİLEN FORMATTA)
         function transferStudentFromModal() {
             const student = students[currentStudentIndex];
             const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(student))));
             const baseUrl = window.location.href.split('?')[0];
             const link = `${baseUrl}?islem=transfer&data=${dataStr}`;
             
-            let teacherPhones = [...new Set(student.courses.map(sc => coursesDB.find(c => c.id === sc.courseId)?.ogretmenTel).filter(t => t))];
+            let teacherPhones = [...new Set(student.dersKayitlari.map(sc => coursesDB.find(c => c.id === sc.courseId)?.ogretmenTel).filter(t => t))];
             
             if(teacherPhones.length > 0) {
-                let msg = `Merhaba, ${student.adSoyad} isimli öğrencinin tüm bilgileri size aktarılmıştır.\n\nAşağıdaki linke tıklayarak kendi panelinize OTOMATİK kaydedebilirsiniz:\n\n${link}`;
+                // İSTENİLEN TRANSFER ŞABLONU
+                let msg = `Sayın Öğretmenim, sisteminize yeni bir öğrenci (${student.adSoyad}) tanımlanmıştır. Kendi panelinize eklemek için aşağıdaki linke tıklayın:\n\n${link}`;
                 window.open(`https://wa.me/90${teacherPhones[0]}?text=${encodeURIComponent(msg)}`, '_blank');
             } else {
                 alert("Öğrencinin ders öğretmenlerine ait telefon numarası bulunamadı.");
             }
         }
-        
-        // Tablodaki Transfer Butonu
-        function transferStudent(index) {
-            currentStudentIndex = index;
-            transferStudentFromModal();
-        }
 
-        // DÜZENLEME & SİLME
         function editStudent(index) {
             const student = students[index];
             document.getElementById('editIndex').value = index;
@@ -812,7 +750,7 @@
             document.getElementById('veliTel').value = student.veliTel;
             
             document.querySelectorAll('input[name="selectedCourses"]').forEach(cb => cb.checked = false);
-            student.courses.forEach(sc => {
+            student.dersKayitlari.forEach(sc => {
                 const checkbox = document.querySelector(`input[name="selectedCourses"][value="${sc.courseId}"]`);
                 if(checkbox) checkbox.checked = true;
             });
@@ -830,12 +768,9 @@
             document.getElementById('cancelEditBtn').style.display = "none";
         }
         function deleteStudent(index) { 
-            if(confirm('Öğrenciyi kalıcı olarak silmek istediğinize emin misiniz?')) { 
-                students.splice(index, 1); saveData(); renderTable(); 
-            } 
+            if(confirm('Öğrenciyi kalıcı olarak silmek istediğinize emin misiniz?')) { students.splice(index, 1); saveData(); renderTable(); } 
         }
 
-        // YEDEKLEME VE KAYIT
         function saveData() { localStorage.setItem('kursOgrencileri', JSON.stringify(students)); }
         
         function exportBackup() { 
@@ -852,8 +787,7 @@
                     const data = JSON.parse(e.target.result); 
                     if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } 
                     saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); 
-                    migrateOldData(); // Yedekten gelen eski sürüm verisi varsa dönüştür
-                    renderCourseCheckboxes(); renderTable(); populateTeacherSelect();
+                    migrateOldData(); renderCourseCheckboxes(); renderTable(); populateTeacherSelect();
                     alert("Yedek başarıyla yüklendi!"); 
                 } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); }
             };
@@ -872,27 +806,25 @@
                     <div style="text-align:right;"><strong>Veli:</strong> ${student.veliAd}<br><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</div>
                 </div>`;
             
-            student.courses.forEach(sc => {
-                const cInfo = coursesDB.find(c => c.id === sc.courseId);
-                if(!cInfo) return;
+            student.dersKayitlari.forEach(sc => {
                 let islenenSaat = 0; let tahsilat = 0;
                 let attRows = ''; let payRows = '';
                 
-                sc.attendance.forEach(a => { 
-                    if(a.status==='Geldi') islenenSaat += a.hours; 
-                    attRows += `<tr style="border-bottom:1px solid #eee;"><td>${a.date}</td><td>${a.hours} Saat</td><td>${a.status}</td></tr>`; 
+                sc.katilimlar.forEach(a => { 
+                    if(a.durum==='Geldi') islenenSaat += a.saat; 
+                    attRows += `<tr style="border-bottom:1px solid #eee;"><td>${a.tarih}</td><td>${a.saat} Saat</td><td>${a.durum}</td></tr>`; 
                 });
-                sc.payments.forEach(p => { 
-                    tahsilat += p.amount; 
-                    payRows += `<tr style="border-bottom:1px solid #eee;"><td>${p.date}</td><td colspan="2">${p.amount} ₺</td></tr>`; 
+                sc.odemeler.forEach(p => { 
+                    tahsilat += p.miktar; 
+                    payRows += `<tr style="border-bottom:1px solid #eee;"><td>${p.tarih}</td><td colspan="2">${p.miktar} ₺</td></tr>`; 
                 });
                 
-                let hakedis = islenenSaat * cInfo.ucret;
+                let hakedis = islenenSaat * sc.ucret;
                 let borc = hakedis - tahsilat;
                 
                 html += `
                 <div style="margin-bottom:25px; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-                    <div style="background:#f1f5f9; padding:10px 15px; font-weight:bold; font-size:15px; border-bottom:1px solid #cbd5e1;">${cInfo.brans} Dersi (Öğretmen: ${cInfo.ogretmen})</div>
+                    <div style="background:#f1f5f9; padding:10px 15px; font-weight:bold; font-size:15px; border-bottom:1px solid #cbd5e1;">${sc.brans} Dersi (Öğretmen: ${sc.ogretmen})</div>
                     <div style="display:flex;">
                         <div style="flex:1; padding:15px; border-right:1px solid #cbd5e1;">
                             <h4 style="margin:0 0 10px 0; color:#475569;">Katılım Geçmişi</h4>
