@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V8.4 - Tam Entegrasyon & Dinamik Transfer)</title>
+    <title>Kurs Takip Asistanı (Final V8.5 - Akıllı Algoritma)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -239,7 +239,6 @@
                 </div>
             </div>
             <div style="margin-top: 20px; text-align: right;">
-                <button class="btn-transfer admin-only" style="width: auto; padding: 12px 25px; font-size: 1.1rem; margin-right: 10px;" onclick="transferStudentFromModal()">📲 Öğretmene Yetki (Link) Gönder</button>
                 <button class="btn-pdf admin-only" style="width: auto; padding: 12px 25px; font-size: 1.1rem;" onclick="generateAdvancedPDF()">📄 Veli Bilgilendirme Ekstresi Üret</button>
             </div>
         </div>
@@ -286,9 +285,9 @@
                 
                 if (s.courses && !s.dersKayitlari) {
                     s.dersKayitlari = s.courses.map(c => {
-                        let info = coursesDB.find(x => x.id === c.courseId) || {};
+                        let info = coursesDB.find(x => x.id.toString() === c.courseId.toString()) || {};
                         return {
-                            courseId: c.courseId,
+                            courseId: c.courseId.toString(),
                             brans: info.brans || 'Bilinmiyor',
                             ogretmen: info.ogretmen || '',
                             ucret: info.ucret || 0,
@@ -314,19 +313,53 @@
             renderSettingsTable();
         };
 
+        // AKILLI TRANSFER VE ONAY SİSTEMİ
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
             const islem = urlParams.get('islem');
             if (!islem) return;
 
+            // ÖĞRETMEN TARAFINDAN TRANSFER KABULÜ
             if (islem === 'transfer') {
                 const dataStr = urlParams.get('data');
                 if (dataStr) {
                     try {
-                        const newStudent = JSON.parse(decodeURIComponent(escape(atob(dataStr))));
-                        const existingIndex = students.findIndex(s => s.adSoyad === newStudent.adSoyad);
-                        if (existingIndex > -1) { students[existingIndex] = newStudent; } 
-                        else { students.push(newStudent); }
+                        let newStudent = JSON.parse(decodeURIComponent(escape(atob(dataStr))));
+                        
+                        // Öğretmen eşleştirme güvenliği: Sadece hedef öğretmenin dersini içeri al
+                        if (newStudent.targetTeacher) {
+                            newStudent.dersKayitlari = newStudent.dersKayitlari.filter(d => 
+                                d.ogretmen.trim().toLowerCase() === newStudent.targetTeacher.trim().toLowerCase()
+                            );
+                            delete newStudent.targetTeacher;
+                        }
+
+                        if (newStudent.dersKayitlari.length === 0) {
+                            alert("Bu transfer verisinde size atanmış bir ders bulunamadı.");
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            return;
+                        }
+
+                        // Veritabanında öğrenci var mı?
+                        const existingIndex = students.findIndex(s => s.adSoyad.trim().toLowerCase() === newStudent.adSoyad.trim().toLowerCase());
+                        
+                        if (existingIndex > -1) {
+                            // Var olan öğrenciye sadece ilgili dersi entegre et (diğerlerini ezme)
+                            const existingStudent = students[existingIndex];
+                            newStudent.dersKayitlari.forEach(newDers => {
+                                const idx = existingStudent.dersKayitlari.findIndex(d => d.courseId.toString() === newDers.courseId.toString());
+                                if(idx > -1) {
+                                    existingStudent.dersKayitlari[idx] = newDers;
+                                } else {
+                                    existingStudent.dersKayitlari.push(newDers);
+                                }
+                            });
+                            students[existingIndex] = existingStudent;
+                        } else {
+                            // Yeni öğrenci olarak ekle
+                            students.push(newStudent);
+                        }
+                        
                         saveData();
                         alert(`✅ ${newStudent.adSoyad} başarıyla sisteme aktarıldı!`);
                         window.history.replaceState({}, document.title, window.location.pathname);
@@ -336,12 +369,13 @@
                 return;
             }
 
+            // YÖNETİCİ ONAYLARI
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
-                const student = students.find(s => s.adSoyad === ogrAd);
+                const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
                 if(student) {
-                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
+                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
                     if(sc) {
                         sc.katilimlar.push({ tarih: urlParams.get('tarih'), saat: parseInt(urlParams.get('saat')), durum: urlParams.get('durum'), veliBildirildi: false, adminBildirildi: true });
                         saveData(); alert(`✅ Yoklama Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('durum')})`);
@@ -353,9 +387,9 @@
             if (islem === 'tahsilat') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
-                const student = students.find(s => s.adSoyad === ogrAd);
+                const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
                 if(student) {
-                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
+                    const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
                     if(sc) {
                         sc.odemeler.push({ tarih: urlParams.get('tarih'), miktar: parseFloat(urlParams.get('miktar')), adminBildirildi: true });
                         saveData(); alert(`✅ Tahsilat Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('miktar')} ₺)`);
@@ -374,7 +408,7 @@
         function populateTeacherSelect() {
             const select = document.getElementById('loginTeacherSelect');
             select.innerHTML = '<option value="">-- Öğretmen Seçin --</option>';
-            const teachers = [...new Set(coursesDB.map(c => c.ogretmen))];
+            const teachers = [...new Set(coursesDB.map(c => c.ogretmen.trim()))];
             teachers.forEach(t => { select.innerHTML += `<option value="${t}">${t}</option>`; });
         }
         function loginAs(role, fromLink = false) {
@@ -401,7 +435,10 @@
             const ogretmenTel = document.getElementById('setOgretmenTel').value.trim();
             const ucret = parseInt(document.getElementById('setUcret').value);
             if(!brans || !ogretmen || !ucret) return alert("Lütfen branş, öğretmen ve ücreti doldurun.");
-            coursesDB.push({ id: Date.now().toString(), brans, ogretmen, ogretmenTel, ucret });
+            
+            // Benzersiz kimlik atama
+            const uniqueId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+            coursesDB.push({ id: uniqueId, brans, ogretmen, ogretmenTel, ucret });
             localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
             renderSettingsTable(); renderCourseCheckboxes();
             document.getElementById('setBrans').value = ''; document.getElementById('setOgretmen').value = ''; document.getElementById('setOgretmenTel').value = ''; document.getElementById('setUcret').value = '';
@@ -418,7 +455,7 @@
             coursesDB.forEach(c => { container.innerHTML += `<label><input type="checkbox" name="selectedCourses" value="${c.id}"> ${c.brans} - ${c.ogretmen} (${c.ucret} ₺)</label>`; });
         }
 
-        // ÖĞRENCİ KAYDET SİSTEMİ - Veri Ezilmesi Giderildi
+        // AKILLI DERS GÜNCELLEME (VERİ EZİLMESİNİ ENGELLEYEN YAPI)
         document.getElementById('studentForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const editIndex = document.getElementById('editIndex').value;
@@ -426,18 +463,32 @@
             if (checkboxes.length === 0) return alert('Lütfen en az bir ders seçin!');
 
             let studentCourses = [];
-            let existingCourses = {};
+            let existingCoursesMap = {};
+            
+            // Eğer düzenleme modundaysak, öğrencinin eski derslerini bir Map'te topla (Veri kaybını önle)
             if(editIndex > -1) { 
-                existingCourses = students[editIndex].dersKayitlari.reduce((acc, c) => { acc[c.courseId] = c; return acc; }, {}); 
+                students[editIndex].dersKayitlari.forEach(c => {
+                    existingCoursesMap[c.courseId.toString()] = c;
+                }); 
             }
 
             checkboxes.forEach(cb => {
-                const cId = cb.value;
-                const cInfo = coursesDB.find(x => x.id === cId);
-                if(existingCourses[cId]) { 
-                    studentCourses.push(existingCourses[cId]); 
+                const cId = cb.value.toString();
+                const cInfo = coursesDB.find(x => x.id.toString() === cId);
+                
+                if(existingCoursesMap[cId]) { 
+                    // Eski ders varsa, orijinal veriyi KORUYARAK diziye ekle
+                    studentCourses.push(existingCoursesMap[cId]); 
                 } else if (cInfo) { 
-                    studentCourses.push({ courseId: cInfo.id, brans: cInfo.brans, ogretmen: cInfo.ogretmen, ucret: cInfo.ucret, katilimlar: [], odemeler: [] }); 
+                    // Yeni seçilmişse sıfırdan oluştur
+                    studentCourses.push({ 
+                        courseId: cInfo.id, 
+                        brans: cInfo.brans, 
+                        ogretmen: cInfo.ogretmen, 
+                        ucret: cInfo.ucret, 
+                        katilimlar: [], 
+                        odemeler: [] 
+                    }); 
                 }
             });
 
@@ -462,7 +513,7 @@
             document.getElementById('formTitle').textContent = "Yeni Öğrenci Ekle";
         });
 
-        // ANA TABLO GÖRÜNÜMÜ - Transfer Butonu Eklendi ve Select Id'leri Benzersiz Yapıldı
+        // ANA TABLO VE ÖĞRETMEN HASSAS EŞLEŞTİRMESİ
         function renderTable() {
             const tbody = document.getElementById('studentTableBody');
             tbody.innerHTML = '';
@@ -471,7 +522,10 @@
             students.forEach((student, index) => {
                 let teacherCourses = [];
                 if(currentUser === 'teacher') {
-                    teacherCourses = student.dersKayitlari.filter(sc => sc.ogretmen === currentTeacher);
+                    // Öğretmen adı eşleştirme (Küçük harf ve boşluk duyarlı)
+                    teacherCourses = student.dersKayitlari.filter(sc => 
+                        sc.ogretmen.trim().toLowerCase() === currentTeacher.trim().toLowerCase()
+                    );
                     if(teacherCourses.length === 0) return;
                 } else {
                     teacherCourses = student.dersKayitlari;
@@ -479,7 +533,6 @@
                 
                 visibleCount++;
 
-                // Benzersiz ID atanan select
                 let selectHTML = `<select id="table_course_select_${index}" class="course-select" onchange="updateTableRowStats(this, ${index})" style="width: 100%; padding: 5px; font-size: 0.85rem; border-radius: 4px;">`;
                 teacherCourses.forEach(sc => { selectHTML += `<option value="${sc.courseId}">${sc.brans} (${sc.ogretmen})</option>`; });
                 selectHTML += `</select>`;
@@ -495,7 +548,7 @@
                     let tahsilat = firstSc.odemeler.reduce((sum, p) => sum + p.miktar, 0);
                     let borc = (islenen * firstSc.ucret) - tahsilat;
                     initialSaat = `${islenen} Saat`;
-                    if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${borc} ₺</span>`; } 
+                    if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${borc.toLocaleString('tr-TR')} ₺</span>`; } 
                     else { initialBorc = `<span style="color:var(--success);">Borç Yok</span>`; }
                 }
 
@@ -539,7 +592,7 @@
                 let borc = (islenen * sc.ucret) - tahsilat;
                 
                 document.getElementById(`saat_td_${studentIndex}`).textContent = `${islenen} Saat`;
-                if (borc > 0) { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--danger); font-weight:bold;">${borc} ₺</span>`; } 
+                if (borc > 0) { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--danger); font-weight:bold;">${borc.toLocaleString('tr-TR')} ₺</span>`; } 
                 else { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--success);">Borç Yok</span>`; }
             }
         }
@@ -555,7 +608,7 @@
             const select = document.getElementById('modalCourseSelect');
             select.innerHTML = '';
             student.dersKayitlari.forEach((sc, i) => {
-                if(currentUser === 'teacher' && sc.ogretmen !== currentTeacher) return;
+                if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return;
                 select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`;
             });
 
@@ -613,7 +666,7 @@
 
             let hakedis = islenen * sc.ucret;
             let borc = hakedis - tahsilat;
-            document.getElementById('modalSeciliBorc').textContent = `${borc} ₺`;
+            document.getElementById('modalSeciliBorc').textContent = `${borc.toLocaleString('tr-TR')} ₺`;
 
             if(currentUser === 'admin') {
                 let totalBorc = 0;
@@ -623,9 +676,9 @@
                     let cTah = courseItem.odemeler.reduce((sum, r) => sum + r.miktar, 0);
                     let cBorc = (cIs * courseItem.ucret) - cTah;
                     totalBorc += cBorc;
-                    if(cBorc > 0) tooltipHTML += `<div>${courseItem.brans}: ${cBorc} ₺</div>`;
+                    if(cBorc > 0) tooltipHTML += `<div>${courseItem.brans}: ${cBorc.toLocaleString('tr-TR')} ₺</div>`;
                 });
-                document.getElementById('modalToplamBorc').textContent = `${totalBorc} ₺`;
+                document.getElementById('modalToplamBorc').textContent = `${totalBorc.toLocaleString('tr-TR')} ₺`;
                 document.getElementById('modalTooltipContent').innerHTML = tooltipHTML || 'Tüm dersler ödendi.';
             }
         }
@@ -698,14 +751,24 @@
             }
         }
 
-        // --- YENİ DİNAMİK TRANSFER SİSTEMİ ÇEKİRDEĞİ ---
-        function executeTransfer(student, courseId) {
-            const courseInfo = coursesDB.find(c => c.id.toString() === courseId.toString());
+        // ANA LİSTEDEN DİNAMİK TRANSFER (SEÇİLİ DERSE GÖRE)
+        function transferStudentFromTable(studentIndex) {
+            const student = students[studentIndex];
+            const selectElement = document.getElementById(`table_course_select_${studentIndex}`);
+            if(!selectElement) return alert("Ders seçimi bulunamadı.");
+            
+            const selectedCourseId = selectElement.value;
+            const courseInfo = coursesDB.find(c => c.id.toString() === selectedCourseId.toString());
+            
             if(!courseInfo || !courseInfo.ogretmenTel) {
                 return alert("Seçili dersin öğretmenine ait telefon numarası bulunamadı. Lütfen ayarlardan kontrol edin.");
             }
             
-            const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(student))));
+            // Güvenli kopyalama ve hedef öğretmen (targetTeacher) ekleme
+            const payloadStudent = JSON.parse(JSON.stringify(student));
+            payloadStudent.targetTeacher = courseInfo.ogretmen;
+
+            const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(payloadStudent))));
             const baseUrl = window.location.href.split('?')[0];
             const link = `${baseUrl}?islem=transfer&data=${dataStr}`;
             
@@ -713,24 +776,7 @@
             window.open(`https://wa.me/90${courseInfo.ogretmenTel}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // Ana Tablodan Transfer
-        function transferStudentFromTable(studentIndex) {
-            const student = students[studentIndex];
-            const selectElement = document.getElementById(`table_course_select_${studentIndex}`);
-            if(!selectElement) return alert("Ders seçimi bulunamadı.");
-            const selectedCourseId = selectElement.value;
-            executeTransfer(student, selectedCourseId);
-        }
-
-        // Modaldan Transfer
-        function transferStudentFromModal() {
-            const student = students[currentStudentIndex];
-            const selectedCourseIndex = document.getElementById('modalCourseSelect').value;
-            if(!selectedCourseIndex) return;
-            const sc = student.dersKayitlari[selectedCourseIndex];
-            executeTransfer(student, sc.courseId);
-        }
-
+        // ÖĞRENCİ DÜZENLEME VE SİLME
         function editStudent(index) {
             const student = students[index];
             document.getElementById('editIndex').value = index;
@@ -787,57 +833,63 @@
             reader.readAsText(event.target.files[0]);
         }
 
-        // PDF EKSTRE
+        // ESKİ, DETAYLI VE AÇIKLAYICI PDF FORMATI
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
             const element = document.createElement('div');
-            let html = `<div style="font-family:sans-serif; padding:20px; color:#1e293b;">
-                <h1 style="color:#2563eb; border-bottom:2px solid #e2e8f0; padding-bottom:10px; text-align:center;">KURS BİLGİLENDİRME EKSTRESİ</h1>
-                <div style="margin-bottom:20px; font-size:14px; background:#f8fafc; padding:15px; border-radius:8px; display:flex; justify-content:space-between;">
-                    <div><strong>Öğrenci:</strong> ${student.adSoyad}<br><strong>Kampüs/Şube:</strong> ${student.kampus}<br><strong>Sınıf/Okul:</strong> ${student.sinif}. Sınıf - ${student.okul}</div>
-                    <div style="text-align:right;"><strong>Veli:</strong> ${student.veliAd}<br><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</div>
-                </div>`;
             
-            student.dersKayitlari.forEach(sc => {
-                let islenenSaat = 0; let tahsilat = 0;
-                let attRows = ''; let payRows = '';
-                
-                sc.katilimlar.forEach(a => { 
-                    if(a.durum==='Geldi') islenenSaat += a.saat; 
-                    attRows += `<tr style="border-bottom:1px solid #eee;"><td>${a.tarih}</td><td>${a.saat} Saat</td><td>${a.durum}</td></tr>`; 
-                });
-                sc.odemeler.forEach(p => { 
-                    tahsilat += p.miktar; 
-                    payRows += `<tr style="border-bottom:1px solid #eee;"><td>${p.tarih}</td><td colspan="2">${p.miktar} ₺</td></tr>`; 
-                });
-                
-                let hakedis = islenenSaat * sc.ucret;
-                let borc = hakedis - tahsilat;
-                
+            let genelToplamBorc = 0;
+            student.dersKayitlari.forEach(d => {
+                let islenen = d.katilimlar.reduce((s,k) => s + (k.durum==='Geldi'?k.saat:0), 0);
+                let odenen = d.odemeler.reduce((s,p) => s + p.miktar, 0);
+                genelToplamBorc += ((islenen * d.ucret) - odenen);
+            });
+
+            let html = `<div style="font-family: sans-serif; padding: 20px;">
+                <h1 style="text-align: center; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">VELİ BİLGİLENDİRME EKSTRESİ</h1>
+                <p style="text-align: right; font-size: 12px;">Rapor Tarihi: ${new Date().toLocaleDateString('tr-TR')}</p>
+                <div style="margin-bottom: 20px; font-size: 14px;">
+                    <strong>Adı Soyadı:</strong> ${student.adSoyad} &nbsp;&nbsp;&nbsp; <strong>Okul Bilgisi:</strong> ${student.sinif}. Sınıf - ${student.okul}<br>
+                    <strong>Veli İletişim:</strong> ${student.veliAd} (${student.veliTel}) &nbsp;&nbsp;&nbsp; <strong style="color:red; font-size:16px;">Kuruma Kalan Toplam Borç: ${genelToplamBorc.toLocaleString('tr-TR')} ₺</strong>
+                </div>`;
+
+            student.dersKayitlari.forEach(d => {
+                let islenen = d.katilimlar.reduce((s,k) => s + (k.durum==='Geldi'?k.saat:0), 0);
+                let odenen = d.odemeler.reduce((s,p) => s + p.miktar, 0);
+                let hak = islenen * d.ucret;
+                let borc = hak - odenen;
+
                 html += `
-                <div style="margin-bottom:25px; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-                    <div style="background:#f1f5f9; padding:10px 15px; font-weight:bold; font-size:15px; border-bottom:1px solid #cbd5e1;">${sc.brans} Dersi (Öğretmen: ${sc.ogretmen})</div>
-                    <div style="display:flex;">
-                        <div style="flex:1; padding:15px; border-right:1px solid #cbd5e1;">
-                            <h4 style="margin:0 0 10px 0; color:#475569;">Katılım Geçmişi</h4>
-                            <table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">${attRows}</table>
-                        </div>
-                        <div style="flex:1; padding:15px;">
-                            <h4 style="margin:0 0 10px 0; color:#475569;">Ödeme Geçmişi</h4>
-                            <table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">${payRows}</table>
-                        </div>
+                <div style="border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="background: #f1f5f9; padding: 10px; font-weight: bold; border-bottom: 1px solid #cbd5e1;">
+                        ${d.brans} Dersi - Öğretmen: ${d.ogretmen} 
+                        <span style="float:right; color:red;">Ders Borcu: ${borc.toLocaleString('tr-TR')} ₺</span>
                     </div>
-                    <div style="background:#eff6ff; padding:10px 15px; border-top:1px solid #cbd5e1; display:flex; justify-content:space-between; font-size:14px;">
-                        <span>Toplam İşlenen: <strong>${islenenSaat} Saat</strong> (${hakedis} ₺)</span>
-                        <span>Toplam Ödenen: <strong style="color:#10b981;">${tahsilat} ₺</strong></span>
-                        <span>Kalan Borç: <strong style="color:#ef4444; font-size:16px;">${borc} ₺</strong></span>
+                    <div style="padding: 15px; display: flex; font-size: 13px;">
+                        <div style="flex:1;">
+                            <strong>Saat Ücreti:</strong> ${d.ucret.toLocaleString('tr-TR')} ₺<br>
+                            <strong>İşlenen Saat:</strong> ${islenen} Saat<br>
+                            <strong>Hak Ediş:</strong> ${hak.toLocaleString('tr-TR')} ₺<br>
+                            <strong>Tahsil Edilen:</strong> ${odenen.toLocaleString('tr-TR')} ₺
+                        </div>
+                        <div style="flex:1;">
+                            <strong>Katılım Dökümü:</strong><br>${d.katilimlar.length > 0 ? d.katilimlar.map(k => `■ ${k.tarih} - ${k.saat} Saat (${k.durum})`).join('<br>') : 'Kayıt yok'}<br><br>
+                            <strong>Tahsilat Dökümü:</strong><br>${d.odemeler.length > 0 ? d.odemeler.map(p => `■ ${p.tarih}: ${p.miktar.toLocaleString('tr-TR')} ₺`).join('<br>') : 'Kayıt yok'}
+                        </div>
                     </div>
                 </div>`;
             });
+
             html += `</div>`;
             element.innerHTML = html;
-            html2pdf().set({ margin:10, filename:`${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} }).from(element).save();
+            html2pdf().set({ 
+                margin: 10, 
+                filename: `${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(element).save();
         }
     </script>
 </body>
