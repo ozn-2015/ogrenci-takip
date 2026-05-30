@@ -261,18 +261,18 @@
         let currentUser = 'admin';
         let currentTeacher = '';
 
-        // TARIH VE PARA FORMATLAYICILARI (GG.AA.YYYY ve 1.000 ₺)
+        // YENİ TARIH FORMATI (Slashed: GG/AA/YYYY) VE PARA FORMATI
         function formatDate(dateStr) {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
-            if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
             return dateStr;
         }
         function formatMoney(amount) {
             return amount.toLocaleString('tr-TR');
         }
 
-        // iOS VE ANDROID ICIN URL-SAFE SIFRELEME
+        // iOS İÇİN URL GÜVENLİ SIKIŞTIRMA (URL-Safe Base64)
         function encodeURLSafeBase64(str) {
             return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
@@ -344,11 +344,9 @@
             renderSettingsTable();
         };
 
-        // OTOMATIK GIRIS VE URL KONTROL
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
             
-            // Otomatik Öğretmen Girişi (Android Yönlendirmesi)
             const autoTeacher = urlParams.get('otomatikGiris');
             if(autoTeacher) {
                 currentTeacher = decodeURIComponent(autoTeacher);
@@ -365,7 +363,7 @@
                 const dataStr = urlParams.get('data');
                 if (dataStr) {
                     try {
-                        let newStudent = JSON.parse(decodeURLSafeBase64(dataStr)); // Yeni Şifreleme Kullanıldı
+                        let newStudent = JSON.parse(decodeURLSafeBase64(dataStr)); 
                         
                         if (newStudent.targetTeacher) {
                             newStudent.dersKayitlari = newStudent.dersKayitlari.filter(d => 
@@ -432,7 +430,6 @@
             }
         }
 
-        // ROL VE BASLIK GUNCELLEME
         function updateRoleBanner() {
             const bannerText = document.getElementById('roleBannerText');
             if(currentUser === 'admin') { bannerText.innerHTML = "👑 YÖNETİCİ PANELİ"; bannerText.style.color = "var(--primary)"; } 
@@ -499,7 +496,6 @@
             coursesDB.forEach(c => { container.innerHTML += `<label><input type="checkbox" name="selectedCourses" value="${c.id}"> ${c.brans} - ${c.ogretmen} (${formatMoney(c.ucret)} ₺)</label>`; });
         }
 
-        // AKILLI DERS GÜNCELLEME
         document.getElementById('studentForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const editIndex = document.getElementById('editIndex').value;
@@ -533,13 +529,12 @@
             };
 
             if (editIndex === "-1") { students.push(student); } 
-            else { students[editIndex] = student; clearForm(); } // Kayıttan sonra formu temizle ve Yeni moda geç
+            else { students[editIndex] = student; clearForm(); } 
 
             sortStudents(); saveData(); renderTable();
             if(editIndex === "-1") { e.target.reset(); }
         });
 
-        // ANA TABLO
         function renderTable() {
             const tbody = document.getElementById('studentTableBody');
             tbody.innerHTML = '';
@@ -619,7 +614,6 @@
             }
         }
 
-        // İŞLEM & DETAY MODALI
         let currentStudentIndex = -1;
         function openDetailModal(index) {
             currentStudentIndex = index;
@@ -705,7 +699,6 @@
             }
         }
 
-        // ÖĞRETMENE ÖZEL LİSTEDEN SİLME İŞLEMİ
         function removeStudentFromTeacherList() {
             if(confirm('Bu öğrenciyi kendi listenizden kalıcı olarak çıkarmak istediğinize emin misiniz?')) {
                 const student = students[currentStudentIndex];
@@ -714,7 +707,6 @@
             }
         }
 
-        // WP MESAJ VE ONAY FONKSİYONLARI (Formatlanmış)
         function notifyParent(tip, idx) {
             const student = students[currentStudentIndex];
             const courseIndex = document.getElementById('modalCourseSelect').value;
@@ -777,7 +769,7 @@
             }
         }
 
-        // ANA LİSTEDEN DİNAMİK TRANSFER (URL-Safe Base64 + Otomatik Giriş)
+        // TRANSFER: Filtreleme ve Minifikasyon
         function transferStudentFromTable(studentIndex) {
             const student = students[studentIndex];
             const selectElement = document.getElementById(`table_course_select_${studentIndex}`);
@@ -790,9 +782,12 @@
                 return alert("Seçili dersin öğretmenine ait telefon numarası bulunamadı. Lütfen ayarlardan kontrol edin.");
             }
             
+            // Veri yükünü atma (Sadece hedef öğretmenin verisini tut)
             const payloadStudent = JSON.parse(JSON.stringify(student));
             payloadStudent.targetTeacher = courseInfo.ogretmen;
+            payloadStudent.dersKayitlari = payloadStudent.dersKayitlari.filter(d => d.ogretmen.trim().toLowerCase() === courseInfo.ogretmen.trim().toLowerCase());
 
+            // iOS Uyumlu Şifreleme
             const dataStr = encodeURLSafeBase64(JSON.stringify(payloadStudent));
             const baseUrl = window.location.href.split('?')[0];
             const link = `${baseUrl}?islem=transfer&otomatikGiris=${encodeURIComponent(courseInfo.ogretmen)}&data=${dataStr}`;
@@ -801,7 +796,6 @@
             window.open(`https://wa.me/90${courseInfo.ogretmenTel}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // DÜZENLEME, TEMİZLEME VE FORMDAN SİLME
         function editStudent(index) {
             const student = students[index];
             document.getElementById('editIndex').value = index;
@@ -860,7 +854,7 @@
             reader.readAsText(event.target.files[0]);
         }
 
-        // KOMPAKT VE FORMATLI PDF EKSTRESİ (Yatay Tasarım)
+        // RENKLİ VE VURGULU PDF EKSTRESİ
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
@@ -898,11 +892,12 @@
                     <div style="padding: 15px; font-size: 13px; line-height: 1.6;">
                         <strong>Katılım Dökümü:</strong><br>
                         ${d.katilimlar.length > 0 ? d.katilimlar.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join(', ') : 'Kayıt yok'}
-                        <br><em style="color:var(--secondary)">Toplam İşlenen: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺ | Hak Ediş: ${formatMoney(hak)} ₺)</em><br><br>
+                        <br><em style="color:#64748b">Toplam İşlenen: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺)</em>
+                        <br><strong style="color:#2563eb; font-size:14px;">Hak Ediş: ${formatMoney(hak)} ₺</strong><br><br>
                         
                         <strong>Tahsilat Dökümü:</strong><br>
                         ${d.odemeler.length > 0 ? d.odemeler.map(p => `${formatDate(p.tarih)} (${formatMoney(p.miktar)} ₺)`).join(', ') : 'Kayıt yok'}
-                        <br><em style="color:var(--secondary)">Toplam Ödenen: ${formatMoney(odenen)} ₺</em>
+                        <br><strong style="color:#ef4444; font-size:14px;">Toplam Ödenen: ${formatMoney(odenen)} ₺</strong>
                     </div>
                 </div>`;
             });
