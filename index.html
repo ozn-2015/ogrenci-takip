@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V8.4 - Tam Entegrasyon)</title>
+    <title>Kurs Takip Asistanı (V8.4 - Tam Entegrasyon & Dinamik Transfer)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -246,14 +246,12 @@
     </div>
 
     <script>
-        // ORİJİNAL VERİ TABANI YAPISI (courses değil, dersKayitlari kullanılarak)
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
         let adminPhone = localStorage.getItem('kursAdminPhone') || "";
         let currentUser = 'admin';
         let currentTeacher = '';
 
-        // KAMPÜS RENKLENDİRME MOTORU
         const campusColors = {};
         const colorPalette = ['#dcfce7', '#dbeafe', '#fef08a', '#ffedd5', '#f3e8ff', '#ffe4e6', '#ccfbf1', '#e0e7ff'];
         let colorIndex = 0;
@@ -267,21 +265,18 @@
             return campusColors[key];
         }
 
-        // GELİŞMİŞ SIRALAMA MOTORU
         function sortStudents() {
             students.sort((a, b) => {
                 let campusA = (a.kampus || "Merkez").toLowerCase();
                 let campusB = (b.kampus || "Merkez").toLowerCase();
                 if (campusA < campusB) return -1;
                 if (campusA > campusB) return 1;
-
                 let sinifA = parseInt(a.sinif) || 0;
                 let sinifB = parseInt(b.sinif) || 0;
                 return sinifA - sinifB;
             });
         }
 
-        // ORİJİNAL YAPININ KORUNDUĞU GÖÇ VE ONARIM FONKSİYONU
         function migrateOldData() {
             let needsSave = false;
             students.forEach(s => {
@@ -289,7 +284,6 @@
                 if (!s.kampus) { s.kampus = "Merkez"; needsSave = true; }
                 if (s.ogrenciTel === undefined) { s.ogrenciTel = ""; needsSave = true; }
                 
-                // Hatalı koddaki "courses" yapısını, orijinal "dersKayitlari" yapısına onarma
                 if (s.courses && !s.dersKayitlari) {
                     s.dersKayitlari = s.courses.map(c => {
                         let info = coursesDB.find(x => x.id === c.courseId) || {};
@@ -320,13 +314,11 @@
             renderSettingsTable();
         };
 
-        // ORİJİNAL AKILLI LİNK VE ONAY SİSTEMİ (Yönetici Paneline Otomatik İşler)
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
             const islem = urlParams.get('islem');
             if (!islem) return;
 
-            // Şifreli Transfer (Öğretmen Tıkladığında)
             if (islem === 'transfer') {
                 const dataStr = urlParams.get('data');
                 if (dataStr) {
@@ -344,7 +336,6 @@
                 return;
             }
 
-            // Yoklama Onay (Yönetici Tıkladığında)
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
@@ -352,21 +343,13 @@
                 if(student) {
                     const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
                     if(sc) {
-                        sc.katilimlar.push({
-                            tarih: urlParams.get('tarih'),
-                            saat: parseInt(urlParams.get('saat')),
-                            durum: urlParams.get('durum'),
-                            veliBildirildi: false,
-                            adminBildirildi: true
-                        });
-                        saveData();
-                        alert(`✅ Yoklama Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('durum')})`);
+                        sc.katilimlar.push({ tarih: urlParams.get('tarih'), saat: parseInt(urlParams.get('saat')), durum: urlParams.get('durum'), veliBildirildi: false, adminBildirildi: true });
+                        saveData(); alert(`✅ Yoklama Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('durum')})`);
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
 
-            // Tahsilat Onay (Yönetici Tıkladığında)
             if (islem === 'tahsilat') {
                 const ogrAd = urlParams.get('ogrenci');
                 const courseId = urlParams.get('courseId');
@@ -374,13 +357,8 @@
                 if(student) {
                     const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId);
                     if(sc) {
-                        sc.odemeler.push({
-                            tarih: urlParams.get('tarih'),
-                            miktar: parseFloat(urlParams.get('miktar')),
-                            adminBildirildi: true
-                        });
-                        saveData();
-                        alert(`✅ Tahsilat Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('miktar')} ₺)`);
+                        sc.odemeler.push({ tarih: urlParams.get('tarih'), miktar: parseFloat(urlParams.get('miktar')), adminBildirildi: true });
+                        saveData(); alert(`✅ Tahsilat Onaylandı ve Sisteme İşlendi: ${ogrAd} (${urlParams.get('miktar')} ₺)`);
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
@@ -440,7 +418,7 @@
             coursesDB.forEach(c => { container.innerHTML += `<label><input type="checkbox" name="selectedCourses" value="${c.id}"> ${c.brans} - ${c.ogretmen} (${c.ucret} ₺)</label>`; });
         }
 
-        // ÖĞRENCİ KAYDET SİSTEMİ (Orijinal dersKayitlari Yapısı)
+        // ÖĞRENCİ KAYDET SİSTEMİ - Veri Ezilmesi Giderildi
         document.getElementById('studentForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const editIndex = document.getElementById('editIndex').value;
@@ -484,7 +462,7 @@
             document.getElementById('formTitle').textContent = "Yeni Öğrenci Ekle";
         });
 
-        // ANA TABLO GÖRÜNÜMÜ
+        // ANA TABLO GÖRÜNÜMÜ - Transfer Butonu Eklendi ve Select Id'leri Benzersiz Yapıldı
         function renderTable() {
             const tbody = document.getElementById('studentTableBody');
             tbody.innerHTML = '';
@@ -501,7 +479,8 @@
                 
                 visibleCount++;
 
-                let selectHTML = `<select class="course-select" onchange="updateTableRowStats(this, ${index})" style="width: 100%; padding: 5px; font-size: 0.85rem; border-radius: 4px;">`;
+                // Benzersiz ID atanan select
+                let selectHTML = `<select id="table_course_select_${index}" class="course-select" onchange="updateTableRowStats(this, ${index})" style="width: 100%; padding: 5px; font-size: 0.85rem; border-radius: 4px;">`;
                 teacherCourses.forEach(sc => { selectHTML += `<option value="${sc.courseId}">${sc.brans} (${sc.ogretmen})</option>`; });
                 selectHTML += `</select>`;
 
@@ -537,6 +516,7 @@
                         <td id="saat_td_${index}">${initialSaat}</td>
                         <td class="actions">
                             <button class="btn-detail" onclick="openDetailModal(${index})">📝 İşlem Yap</button>
+                            <button class="btn-transfer admin-only" onclick="transferStudentFromTable(${index})">📲 Transfer</button>
                             <button class="btn-edit admin-only" onclick="editStudent(${index})">✏️</button>
                             <button class="btn-delete admin-only" onclick="deleteStudent(${index})">🗑️</button>
                         </td>
@@ -603,7 +583,6 @@
                 if(log.durum === 'Geldi') islenen += log.saat;
                 const statusColor = log.durum === 'Geldi' ? 'var(--success)' : 'var(--danger)';
                 
-                // YENİ BUTONLAR (V ve Y)
                 let vBtn = (currentUser === 'admin' || currentUser === 'teacher') ? `<a href="#" onclick="notifyParent('yoklama', ${realIndex}); return false;" title="Veliye WP Gönder" class="wp-btn v-btn ${log.veliBildirildi ? 'disabled-btn' : ''}">${log.veliBildirildi ? '✅' : 'V'}</a>` : '';
                 let yBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('yoklama', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'Y'}</a>` : '';
                 
@@ -651,7 +630,7 @@
             }
         }
 
-        // TAM İSTEDİĞİNİZ WP MESAJ VE ONAY FONKSİYONLARI
+        // WP MESAJ VE ONAY FONKSİYONLARI
         function notifyParent(tip, idx) {
             const student = students[currentStudentIndex];
             const courseIndex = document.getElementById('modalCourseSelect').value;
@@ -659,7 +638,6 @@
             
             if (tip === 'yoklama') {
                 const k = sc.katilimlar[idx];
-                // İSTENİLEN FORMAT
                 let msg = `Merhaba, ${student.adSoyad} isimli öğrencimiz ${k.tarih} tarihinde ${sc.brans} (${sc.ogretmen}) dersine *${k.durum}*.`;
                 k.veliBildirildi = true;
                 saveData(); renderModalLists(); renderTable();
@@ -720,22 +698,37 @@
             }
         }
 
-        // ÖĞRETMENE TRANSFER MESAJI (İSTENİLEN FORMATTA)
-        function transferStudentFromModal() {
-            const student = students[currentStudentIndex];
+        // --- YENİ DİNAMİK TRANSFER SİSTEMİ ÇEKİRDEĞİ ---
+        function executeTransfer(student, courseId) {
+            const courseInfo = coursesDB.find(c => c.id.toString() === courseId.toString());
+            if(!courseInfo || !courseInfo.ogretmenTel) {
+                return alert("Seçili dersin öğretmenine ait telefon numarası bulunamadı. Lütfen ayarlardan kontrol edin.");
+            }
+            
             const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(student))));
             const baseUrl = window.location.href.split('?')[0];
             const link = `${baseUrl}?islem=transfer&data=${dataStr}`;
             
-            let teacherPhones = [...new Set(student.dersKayitlari.map(sc => coursesDB.find(c => c.id === sc.courseId)?.ogretmenTel).filter(t => t))];
-            
-            if(teacherPhones.length > 0) {
-                // İSTENİLEN TRANSFER ŞABLONU
-                let msg = `Sayın Öğretmenim, sisteminize yeni bir öğrenci (${student.adSoyad}) tanımlanmıştır. Kendi panelinize eklemek için aşağıdaki linke tıklayın:\n\n${link}`;
-                window.open(`https://wa.me/90${teacherPhones[0]}?text=${encodeURIComponent(msg)}`, '_blank');
-            } else {
-                alert("Öğrencinin ders öğretmenlerine ait telefon numarası bulunamadı.");
-            }
+            let msg = `Sayın Öğretmenim, sisteminize yeni bir öğrenci (${student.adSoyad}) tanımlanmıştır. Kendi panelinize eklemek için aşağıdaki linke tıklayın:\n\n${link}`;
+            window.open(`https://wa.me/90${courseInfo.ogretmenTel}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        // Ana Tablodan Transfer
+        function transferStudentFromTable(studentIndex) {
+            const student = students[studentIndex];
+            const selectElement = document.getElementById(`table_course_select_${studentIndex}`);
+            if(!selectElement) return alert("Ders seçimi bulunamadı.");
+            const selectedCourseId = selectElement.value;
+            executeTransfer(student, selectedCourseId);
+        }
+
+        // Modaldan Transfer
+        function transferStudentFromModal() {
+            const student = students[currentStudentIndex];
+            const selectedCourseIndex = document.getElementById('modalCourseSelect').value;
+            if(!selectedCourseIndex) return;
+            const sc = student.dersKayitlari[selectedCourseIndex];
+            executeTransfer(student, sc.courseId);
         }
 
         function editStudent(index) {
