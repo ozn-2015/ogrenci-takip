@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V9.5 - Profesyonel CRM Sürümü)</title>
+    <title>Kurs Takip Asistanı (V10.0 - Güvenlik & Smart PDF)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -30,7 +30,6 @@
         button { background-color: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; transition: background 0.2s; }
         button:hover { background-color: #1d4ed8; }
         
-        /* 3 SÜTUNLU KAMPÜS VE ARAMA GRID TASARIMI */
         .control-panel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .search-box { grid-column: span 2; position: relative; }
         .search-box input { width: 100%; height: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--primary); border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
@@ -38,9 +37,7 @@
         
         .campus-btn { position: relative; background: white; border: 1px solid var(--border); padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text); transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; width: 100%; }
         .campus-btn:hover, .campus-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-        
-        .campus-tooltip { visibility: hidden; opacity: 0; position: absolute; top: 120%; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 10px 15px; border-radius: 8px; z-index: 100; min-width: 180px; text-align: left; transition: 0.2s; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-weight: normal; max-height: 250px; overflow-y: auto; white-space: nowrap; }
-        .campus-tooltip::after { content: ""; position: absolute; bottom: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: transparent transparent #1e293b transparent; }
+        .campus-tooltip { visibility: hidden; opacity: 0; position: absolute; top: 120%; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 10px 15px; border-radius: 8px; z-index: 100; min-width: 180px; text-align: left; transition: 0.2s; font-weight: normal; max-height: 250px; overflow-y: auto; white-space: nowrap; }
         .campus-btn:hover .campus-tooltip { visibility: visible; opacity: 1; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -50,10 +47,9 @@
         .actions { display: flex; flex-wrap: wrap; gap: 4px; }
         .actions button { width: auto; padding: 6px 10px; font-size: 0.8rem; margin: 0; }
         .btn-edit { background-color: var(--info); } .btn-detail { background-color: var(--warning); color: #000; }
-        .btn-pdf { background-color: var(--danger); } .btn-delete { background-color: var(--danger); }
-        .btn-transfer { background-color: var(--purple); }
+        .btn-pdf { background-color: var(--danger); } .btn-transfer { background-color: var(--purple); }
         .btn-settings { background-color: #475569; margin-bottom: 10px; }
-        .btn-muhasebe { background-color: #10b981; margin-bottom: 15px; } /* Yeni Muhasebe Butonu */
+        .btn-muhasebe { background-color: #10b981; margin-bottom: 15px; }
         
         .badge { background: #fff; border: 1px solid #ccc; padding: 2px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; margin-bottom: 3px; }
 
@@ -89,14 +85,34 @@
 </head>
 <body class="admin-mode">
     <div id="loginOverlay">
-        <div class="login-box">
-            <h2 style="margin-bottom: 25px; border:none; color:var(--text);">Sisteme Giriş Yapın</h2>
-            <button class="login-btn btn-admin" onclick="loginAs('admin')">👑 Yönetici Girişi</button>
-            <div style="margin: 25px 0; font-size: 0.9rem; color: var(--secondary); position: relative;">
-                <hr style="border: 0; border-top: 1px solid var(--border);"><span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">Veya Öğretmen Girişi</span>
+        <div class="login-box" id="loginBoxContent">
+            <div id="mainLoginView">
+                <h2 style="margin-bottom: 25px; border:none; color:var(--text);">Sisteme Giriş Yapın</h2>
+                <button class="login-btn btn-admin" onclick="showAdminLoginPrompt()">👑 Yönetici Girişi</button>
+                <div style="margin: 25px 0; font-size: 0.9rem; color: var(--secondary); position: relative;">
+                    <hr style="border: 0; border-top: 1px solid var(--border);"><span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">Veya Öğretmen Girişi</span>
+                </div>
+                <select id="loginTeacherSelect" style="margin-bottom: 15px; padding: 12px;"></select>
+                <button class="login-btn btn-teacher" onclick="loginAs('teacher')">👨‍🏫 Öğretmen Olarak Devam Et</button>
             </div>
-            <select id="loginTeacherSelect" style="margin-bottom: 15px; padding: 12px;"></select>
-            <button class="login-btn btn-teacher" onclick="loginAs('teacher')">👨‍🏫 Öğretmen Olarak Devam Et</button>
+            
+            <div id="adminLoginView" style="display:none;">
+                <h2 style="margin-bottom: 15px; border:none;">Yönetici Şifresi</h2>
+                <input type="password" id="adminPassInput" placeholder="PIN Kodunuzu Girin" style="margin-bottom: 15px; text-align:center; font-size:1.2rem; letter-spacing:3px;">
+                <button class="login-btn btn-admin" onclick="verifyAdminPass()">Giriş Yap</button>
+                <div style="display:flex; justify-content:space-between; margin-top:15px;">
+                    <button onclick="cancelAdminLogin()" style="background:none; border:none; color:var(--secondary); cursor:pointer; font-weight:bold;">← Geri Dön</button>
+                    <button onclick="showForgotPassword()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:bold;">Şifremi Unuttum?</button>
+                </div>
+            </div>
+
+            <div id="forgotPassView" style="display:none;">
+                <h2 style="margin-bottom: 15px; border:none; color:var(--danger);">Şifre Kurtarma</h2>
+                <p id="secQuestionDisplay" style="font-weight:bold; margin-bottom:10px; color:var(--text);"></p>
+                <input type="text" id="secAnswerInput" placeholder="Cevabınız" style="margin-bottom: 15px;">
+                <button class="login-btn btn-teacher" onclick="verifySecurityAnswer()">Doğrula & Giriş Yap</button>
+                <button onclick="cancelAdminLogin()" style="background:none; border:none; color:var(--secondary); cursor:pointer; font-weight:bold; margin-top:15px;">← Geri Dön</button>
+            </div>
         </div>
     </div>
     
@@ -108,7 +124,7 @@
 
     <div class="container">
         <div class="panel admin-only" id="leftPanel">
-            <button class="btn-settings" onclick="openSettingsModal()">⚙️ Öğretmen & Branş Ayarları</button>
+            <button class="btn-settings" onclick="openSettingsModal()">⚙️ Öğretmen & Güvenlik Ayarları</button>
             <button class="btn-muhasebe" onclick="goToMuhasebe()">💼 Muhasebe Modülüne Git</button>
             
             <h2 id="formTitle" style="margin-top: 10px;">Yeni Öğrenci Ekle</h2>
@@ -154,10 +170,7 @@
 
         <div class="panel">
             <h2>Öğrenci Listesi <span class="badge" id="studentCount" style="background:#e2e8f0; border:none; float:right;">0 Öğrenci</span></h2>
-            
-            <div class="control-panel-grid" id="campusFiltersGrid">
-                </div>
-
+            <div class="control-panel-grid" id="campusFiltersGrid"></div>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -178,15 +191,27 @@
     <div id="settingsModal" class="modal">
         <div class="modal-content" style="max-width: 750px;">
             <span class="close-modal" onclick="closeSettingsModal()">&times;</span>
-            <h3 style="margin-top: 0; color: var(--primary);">⚙️ Öğretmen & Ders Ayarları</h3>
+            <h3 style="margin-top: 0; color: var(--primary);">⚙️ Ayarlar Merkezi</h3>
             
+            <div style="margin-bottom: 20px; background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca;">
+                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">🔒 Yönetici Paneli Güvenliği</label>
+                <div style="display: flex; gap: 10px; margin-bottom:10px;">
+                    <input type="text" id="setAdminPass" placeholder="Yeni Giriş Şifresi (Örn: 1234)" style="flex: 1;">
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap:wrap;">
+                    <input type="text" id="setSecQ" placeholder="Gizli Soru (Örn: İlk evcil hayvanınız?)" style="flex: 2;">
+                    <input type="text" id="setSecA" placeholder="Cevap" style="flex: 1;">
+                    <button style="width: auto; background-color: #991b1b;" onclick="saveSecuritySettings()">Güvenliği Güncelle</button>
+                </div>
+                <small style="color: #b91c1c; display: block; margin-top: 5px;">Varsayılan şifre: 1234 | Soru: İlk evcil hayvanınız? | Cevap: admin</small>
+            </div>
+
             <div style="margin-bottom: 20px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe;">
-                <label style="color: #1e3a8a; font-weight: bold; margin-bottom: 8px;">📲 Yönetici WhatsApp Numarası (Başında 0 olmadan)</label>
+                <label style="color: #1e3a8a; font-weight: bold; margin-bottom: 8px; display:block;">📲 Yönetici WhatsApp Bildirim Numarası</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="number" id="setAdminPhone" placeholder="Örn: 5551234567" style="flex: 1;">
+                    <input type="number" id="setAdminPhone" placeholder="Başında 0 olmadan (Örn: 5551234567)" style="flex: 1;">
                     <button style="width: auto; background-color: #1e3a8a;" onclick="saveAdminPhone()">Numarayı Kaydet</button>
                 </div>
-                <small style="color: var(--secondary); display: block; margin-top: 5px;">Öğretmenlerin tahsilat/yoklama bildirimleri bu numaraya gönderilir.</small>
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
@@ -194,7 +219,7 @@
                 <input type="text" id="setOgretmen" placeholder="Öğretmen" style="flex: 1; min-width: 100px;">
                 <input type="number" id="setOgretmenTel" placeholder="Öğrt. Tel (WP)" style="flex: 1; min-width: 100px;">
                 <input type="number" id="setUcret" placeholder="Saat Ücreti ₺" style="flex: 1; min-width: 100px;">
-                <button id="btnCourseSave" style="width: auto;" onclick="addCourseSetting()">Ekle</button>
+                <button id="btnCourseSave" style="width: auto;" onclick="addCourseSetting()">Ders Ekle</button>
             </div>
             <table style="margin-top: 0;">
                 <thead><tr><th>Branş</th><th>Öğretmen</th><th>Öğrt. Tel</th><th>Saat Ücreti</th><th>İşlem</th></tr></thead>
@@ -256,13 +281,21 @@
     </div>
 
     <script>
+        // --- VERİTABANI DEĞİŞKENLERİ ---
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
         let adminPhone = localStorage.getItem('kursAdminPhone') || "";
+        
+        // GÜVENLİK DEĞİŞKENLERİ
+        let adminPassword = localStorage.getItem('kursAdminPass') || "1234";
+        let securityQuestion = localStorage.getItem('kursSecQ') || "İlk evcil hayvanınız?";
+        let securityAnswer = localStorage.getItem('kursSecA') || "admin";
+        
         let currentUser = 'admin';
         let currentTeacher = '';
         let currentCampusFilter = 'All';
 
+        // --- YARDIMCI FONKSİYONLAR ---
         function formatDate(dateStr) {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
@@ -283,46 +316,61 @@
             return campusColors[key];
         }
 
-        function sortStudents() {
-            students.sort((a, b) => {
-                let campusA = (a.kampus || "Merkez").toLowerCase();
-                let campusB = (b.kampus || "Merkez").toLowerCase();
-                if (campusA < campusB) return -1;
-                if (campusA > campusB) return 1;
-                let sinifA = parseInt(a.sinif) || 0;
-                let sinifB = parseInt(b.sinif) || 0;
-                return sinifA - sinifB;
-            });
-        }
-
-        function migrateOldData() {
-            let needsSave = false;
-            students.forEach(s => {
-                if (s.sinifOkul) { s.okul = s.sinifOkul; s.sinif = s.sinifOkul.replace(/[^0-9]/g, '') || "0"; delete s.sinifOkul; needsSave = true; }
-                if (!s.kampus) { s.kampus = "Merkez"; needsSave = true; }
-                if (s.ogrenciTel === undefined) { s.ogrenciTel = ""; needsSave = true; }
-                if (s.courses && !s.dersKayitlari) {
-                    s.dersKayitlari = s.courses.map(c => {
-                        let info = coursesDB.find(x => x.id.toString() === c.courseId.toString()) || {};
-                        return { courseId: c.courseId.toString(), brans: info.brans || 'Bilinmiyor', ogretmen: info.ogretmen || '', ucret: info.ucret || 0, katilimlar: (c.attendance || []).map(a => ({ tarih: a.date, saat: a.hours, durum: a.status, veliBildirildi: a.veliBildirildi||false, adminBildirildi: a.adminBildirildi||false })), odemeler: (c.payments || []).map(p => ({ tarih: p.date, miktar: p.amount, adminBildirildi: p.adminBildirildi||false })) };
-                    });
-                    delete s.courses; needsSave = true;
-                }
-            });
-            if (needsSave) { sortStudents(); saveData(); }
-        }
-
+        // --- SİSTEM BAŞLATMA ---
         window.onload = () => {
             migrateOldData();
             checkUrlParameters(); 
             checkLoginStatus();
             document.getElementById('setAdminPhone').value = adminPhone;
+            document.getElementById('setSecQ').value = securityQuestion; // Ayarlardaki soruyu doldur
             sortStudents();
             renderCourseCheckboxes();
             renderTable();
             renderCampusFilters(); 
             renderSettingsTable();
         };
+
+        // --- GÜVENLİK VE GİRİŞ (LOGIN) İŞLEMLERİ ---
+        function showAdminLoginPrompt() {
+            document.getElementById('mainLoginView').style.display = 'none';
+            document.getElementById('adminLoginView').style.display = 'block';
+            document.getElementById('forgotPassView').style.display = 'none';
+        }
+        function cancelAdminLogin() {
+            document.getElementById('mainLoginView').style.display = 'block';
+            document.getElementById('adminLoginView').style.display = 'none';
+            document.getElementById('forgotPassView').style.display = 'none';
+            document.getElementById('adminPassInput').value = '';
+            document.getElementById('secAnswerInput').value = '';
+        }
+        function verifyAdminPass() {
+            if(document.getElementById('adminPassInput').value === adminPassword) {
+                loginAs('admin');
+                cancelAdminLogin();
+            } else { alert('Hatalı şifre! Lütfen tekrar deneyin.'); }
+        }
+        function showForgotPassword() {
+            document.getElementById('adminLoginView').style.display = 'none';
+            document.getElementById('forgotPassView').style.display = 'block';
+            document.getElementById('secQuestionDisplay').textContent = "Gizli Sorunuz: " + securityQuestion;
+        }
+        function verifySecurityAnswer() {
+            if(document.getElementById('secAnswerInput').value.trim().toLowerCase() === securityAnswer.trim().toLowerCase()) {
+                alert('Doğrulama Başarılı! Sisteme giriliyor. Lütfen ayarlardan şifrenizi yenileyin.');
+                loginAs('admin');
+                cancelAdminLogin();
+            } else { alert('Hatalı cevap!'); }
+        }
+        function saveSecuritySettings() {
+            const p = document.getElementById('setAdminPass').value.trim();
+            const q = document.getElementById('setSecQ').value.trim();
+            const a = document.getElementById('setSecA').value.trim();
+            if(p) { adminPassword = p; localStorage.setItem('kursAdminPass', adminPassword); }
+            if(q) { securityQuestion = q; localStorage.setItem('kursSecQ', securityQuestion); }
+            if(a) { securityAnswer = a; localStorage.setItem('kursSecA', securityAnswer); }
+            alert("Güvenlik ayarları başarıyla güncellendi!");
+            document.getElementById('setAdminPass').value = ''; 
+        }
 
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -334,7 +382,6 @@
                 document.getElementById('loginOverlay').style.display = 'none';
                 updateRoleBanner();
             }
-
             const islem = urlParams.get('islem');
             if (!islem) return;
 
@@ -364,7 +411,6 @@
                 }
                 return;
             }
-
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci'); const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
@@ -408,55 +454,64 @@
         }
         function logout() { 
             document.getElementById('loginOverlay').style.display = 'flex'; 
+            cancelAdminLogin(); // Ekranı resetle
             currentTeacher = ''; currentUser = 'admin'; document.body.className = 'admin-mode';
             populateTeacherSelect(); renderCampusFilters();
         }
         
-        // YENİ MUHASEBE YÖNLENDİRME FONKSİYONU
         function goToMuhasebe() {
             alert("Muhasebe modülü yapım aşamasındadır, yakında github üzerinden aktif edilecektir.");
-            // İleride burası: window.location.href = "muhasebe.html"; olarak değişecek
         }
 
-        // --- AKILLI KAMPÜS SİSTEMİ (GRID) ---
+        // --- VERİ MİRASI VE DÜZENLEME FONKSİYONLARI ---
+        function sortStudents() {
+            students.sort((a, b) => {
+                let campusA = (a.kampus || "Merkez").toLowerCase(); let campusB = (b.kampus || "Merkez").toLowerCase();
+                if (campusA < campusB) return -1; if (campusA > campusB) return 1;
+                let sinifA = parseInt(a.sinif) || 0; let sinifB = parseInt(b.sinif) || 0;
+                return sinifA - sinifB;
+            });
+        }
+        function migrateOldData() {
+            let needsSave = false;
+            students.forEach(s => {
+                if (s.sinifOkul) { s.okul = s.sinifOkul; s.sinif = s.sinifOkul.replace(/[^0-9]/g, '') || "0"; delete s.sinifOkul; needsSave = true; }
+                if (!s.kampus) { s.kampus = "Merkez"; needsSave = true; }
+                if (s.ogrenciTel === undefined) { s.ogrenciTel = ""; needsSave = true; }
+                if (s.courses && !s.dersKayitlari) {
+                    s.dersKayitlari = s.courses.map(c => {
+                        let info = coursesDB.find(x => x.id.toString() === c.courseId.toString()) || {};
+                        return { courseId: c.courseId.toString(), brans: info.brans || 'Bilinmiyor', ogretmen: info.ogretmen || '', ucret: info.ucret || 0, katilimlar: (c.attendance || []).map(a => ({ tarih: a.date, saat: a.hours, durum: a.status, veliBildirildi: a.veliBildirildi||false, adminBildirildi: a.adminBildirildi||false })), odemeler: (c.payments || []).map(p => ({ tarih: p.date, miktar: p.amount, adminBildirildi: p.adminBildirildi||false })) };
+                    });
+                    delete s.courses; needsSave = true;
+                }
+            });
+            if (needsSave) { sortStudents(); saveData(); }
+        }
+
+        // --- KAMPÜS FİLTRE VE TABLO RENDER ---
         function renderCampusFilters() {
             const container = document.getElementById('campusFiltersGrid');
             const searchVal = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
-            
-            // Grid'in ilk satırı: Arama kutusu (span 2) ve Tümünü Göster (span 1)
             let html = `
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Öğrenci Adı veya Okul Ara..." onkeyup="filterTable()" value="${searchVal}">
-                </div>
+                <div class="search-box"><input type="text" id="searchInput" placeholder="Öğrenci Adı veya Okul Ara..." onkeyup="filterTable()" value="${searchVal}"></div>
                 <button id="btnCampTumu" class="campus-btn ${currentCampusFilter === 'All' ? 'active' : ''}" onclick="applyCampusFilter('All')" style="height: 100%;">📍 Tümünü Göster</button>
             `;
-            
             let relevantStudents = students;
             if(currentUser === 'teacher') { relevantStudents = students.filter(s => s.dersKayitlari.some(d => d.ogretmen.trim().toLowerCase() === currentTeacher.trim().toLowerCase())); }
-            
             const uniqueCampuses = [...new Set(relevantStudents.map(s => (s.kampus || 'Merkez').trim()))].sort();
-            
-            // Kampüs butonları 2. satırdan itibaren dizilmeye başlar
             uniqueCampuses.forEach(campus => {
                 const studentsInCampus = relevantStudents.filter(s => (s.kampus || 'Merkez').trim().toLowerCase() === campus.toLowerCase());
                 let tooltipContent = studentsInCampus.slice(0, 15).map(s => `• ${s.adSoyad}`).join('<br>');
                 if(studentsInCampus.length > 15) tooltipContent += `<br><em>...ve ${studentsInCampus.length - 15} kişi daha</em>`;
-                
-                html += `
-                    <button id="btnCamp_${campus.replace(/\s+/g, '')}" class="campus-btn ${currentCampusFilter === campus ? 'active' : ''}" onclick="applyCampusFilter('${campus}')">
-                        ${campus} (${studentsInCampus.length})
-                        <div class="campus-tooltip">${tooltipContent}</div>
-                    </button>
-                `;
+                html += `<button id="btnCamp_${campus.replace(/\s+/g, '')}" class="campus-btn ${currentCampusFilter === campus ? 'active' : ''}" onclick="applyCampusFilter('${campus}')">${campus} (${studentsInCampus.length})<div class="campus-tooltip">${tooltipContent}</div></button>`;
             });
             container.innerHTML = html;
         }
 
         function applyCampusFilter(campusName) {
-            currentCampusFilter = campusName;
-            document.querySelectorAll('.campus-btn').forEach(btn => btn.classList.remove('active'));
-            if(campusName === 'All') document.getElementById('btnCampTumu').classList.add('active');
-            else document.getElementById('btnCamp_' + campusName.replace(/\s+/g, '')).classList.add('active');
+            currentCampusFilter = campusName; document.querySelectorAll('.campus-btn').forEach(btn => btn.classList.remove('active'));
+            if(campusName === 'All') document.getElementById('btnCampTumu').classList.add('active'); else document.getElementById('btnCamp_' + campusName.replace(/\s+/g, '')).classList.add('active');
             renderTable();
         }
 
@@ -469,13 +524,9 @@
             const brans = document.getElementById('setBrans').value.trim(); const ogretmen = document.getElementById('setOgretmen').value.trim();
             const ogretmenTel = document.getElementById('setOgretmenTel').value.trim(); const ucret = parseInt(document.getElementById('setUcret').value);
             if(!brans || !ogretmen || !ucret) return alert("Lütfen branş, öğretmen ve ücreti doldurun.");
-            
             const uniqueId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-            coursesDB.push({ id: uniqueId, brans, ogretmen, ogretmenTel, ucret });
-            localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
-            renderSettingsTable(); renderCourseCheckboxes();
-            document.getElementById('setBrans').value = ''; document.getElementById('setOgretmen').value = ''; document.getElementById('setOgretmenTel').value = ''; document.getElementById('setUcret').value = '';
-            populateTeacherSelect();
+            coursesDB.push({ id: uniqueId, brans, ogretmen, ogretmenTel, ucret }); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB));
+            renderSettingsTable(); renderCourseCheckboxes(); document.getElementById('setBrans').value = ''; document.getElementById('setOgretmen').value = ''; document.getElementById('setOgretmenTel').value = ''; document.getElementById('setUcret').value = ''; populateTeacherSelect();
         }
         function deleteCourseSetting(index) { coursesDB.splice(index, 1); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); renderSettingsTable(); renderCourseCheckboxes(); populateTeacherSelect(); }
         function renderSettingsTable() {
@@ -489,82 +540,45 @@
         }
 
         document.getElementById('studentForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const editIndex = document.getElementById('editIndex').value;
-            const checkboxes = document.querySelectorAll('input[name="selectedCourses"]:checked');
+            e.preventDefault(); const editIndex = document.getElementById('editIndex').value; const checkboxes = document.querySelectorAll('input[name="selectedCourses"]:checked');
             if (checkboxes.length === 0) return alert('Lütfen en az bir ders seçin!');
-
-            let studentCourses = [];
-            let existingCoursesMap = {};
+            let studentCourses = []; let existingCoursesMap = {};
             if(editIndex > -1) { students[editIndex].dersKayitlari.forEach(c => { existingCoursesMap[c.courseId.toString()] = c; }); }
-
             checkboxes.forEach(cb => {
                 const cId = cb.value.toString(); const cInfo = coursesDB.find(x => x.id.toString() === cId);
-                if(existingCoursesMap[cId]) { studentCourses.push(existingCoursesMap[cId]); } 
-                else if (cInfo) { studentCourses.push({ courseId: cInfo.id, brans: cInfo.brans, ogretmen: cInfo.ogretmen, ucret: cInfo.ucret, katilimlar: [], odemeler: [] }); }
+                if(existingCoursesMap[cId]) { studentCourses.push(existingCoursesMap[cId]); } else if (cInfo) { studentCourses.push({ courseId: cInfo.id, brans: cInfo.brans, ogretmen: cInfo.ogretmen, ucret: cInfo.ucret, katilimlar: [], odemeler: [] }); }
             });
-
             const student = {
-                adSoyad: document.getElementById('adSoyad').value.trim(),
-                kampus: document.getElementById('kampus').value.trim() || 'Merkez',
-                ogrenciTel: document.getElementById('ogrenciTel').value.trim(),
-                sinif: document.getElementById('sinif').value.trim(),
-                okul: document.getElementById('okul').value.trim(),
-                veliAd: document.getElementById('veliAd').value.trim(),
-                veliTel: document.getElementById('veliTel').value.trim(),
-                dersKayitlari: studentCourses
+                adSoyad: document.getElementById('adSoyad').value.trim(), kampus: document.getElementById('kampus').value.trim() || 'Merkez', ogrenciTel: document.getElementById('ogrenciTel').value.trim(),
+                sinif: document.getElementById('sinif').value.trim(), okul: document.getElementById('okul').value.trim(), veliAd: document.getElementById('veliAd').value.trim(), veliTel: document.getElementById('veliTel').value.trim(), dersKayitlari: studentCourses
             };
-
-            if (editIndex === "-1") { students.push(student); } 
-            else { students[editIndex] = student; clearForm(); } 
-
-            sortStudents(); saveData(); renderCampusFilters(); renderTable();
-            if(editIndex === "-1") { e.target.reset(); }
+            if (editIndex === "-1") { students.push(student); } else { students[editIndex] = student; clearForm(); } 
+            sortStudents(); saveData(); renderCampusFilters(); renderTable(); if(editIndex === "-1") { e.target.reset(); }
         });
 
         function renderTable() {
-            const tbody = document.getElementById('studentTableBody');
-            tbody.innerHTML = '';
-            let visibleCount = 0;
+            const tbody = document.getElementById('studentTableBody'); tbody.innerHTML = ''; let visibleCount = 0;
             const searchQuery = (document.getElementById('searchInput') ? document.getElementById('searchInput').value.trim().toLowerCase() : '');
 
             students.forEach((student, index) => {
-                if(searchQuery !== '') {
-                    const searchString = `${student.adSoyad} ${student.okul} ${student.kampus}`.toLowerCase();
-                    if(!searchString.includes(searchQuery)) return; 
-                }
-                if(currentCampusFilter !== 'All' && (student.kampus || 'Merkez').trim().toLowerCase() !== currentCampusFilter.toLowerCase()) {
-                    return; 
-                }
-
+                if(searchQuery !== '') { const searchString = `${student.adSoyad} ${student.okul} ${student.kampus}`.toLowerCase(); if(!searchString.includes(searchQuery)) return; }
+                if(currentCampusFilter !== 'All' && (student.kampus || 'Merkez').trim().toLowerCase() !== currentCampusFilter.toLowerCase()) { return; }
                 let teacherCourses = [];
-                if(currentUser === 'teacher') {
-                    teacherCourses = student.dersKayitlari.filter(sc => sc.ogretmen.trim().toLowerCase() === currentTeacher.trim().toLowerCase());
-                    if(teacherCourses.length === 0) return;
-                } else { teacherCourses = student.dersKayitlari; }
+                if(currentUser === 'teacher') { teacherCourses = student.dersKayitlari.filter(sc => sc.ogretmen.trim().toLowerCase() === currentTeacher.trim().toLowerCase()); if(teacherCourses.length === 0) return; } else { teacherCourses = student.dersKayitlari; }
                 
                 visibleCount++;
-
                 let selectHTML = `<select id="table_course_select_${index}" class="course-select" onchange="updateTableRowStats(this, ${index})" style="width: 100%; padding: 5px; font-size: 0.85rem; border-radius: 4px;">`;
-                teacherCourses.forEach(sc => { selectHTML += `<option value="${sc.courseId}">${sc.brans} (${sc.ogretmen})</option>`; });
-                selectHTML += `</select>`;
+                teacherCourses.forEach(sc => { selectHTML += `<option value="${sc.courseId}">${sc.brans} (${sc.ogretmen})</option>`; }); selectHTML += `</select>`;
 
                 let wpVeli = student.veliTel ? `<a href="https://wa.me/90${student.veliTel}" target="_blank" class="wp-btn v-btn" title="Veliye Yaz">👨‍👩‍👦 Veli</a>` : `<span class="wp-btn v-btn disabled-btn">👨‍👩‍👦 Veli</span>`;
                 let wpOgrenci = student.ogrenciTel ? `<a href="https://wa.me/90${student.ogrenciTel}" target="_blank" class="wp-btn s-btn" title="Öğrenciye Yaz">📱 Öğrenci</a>` : `<span class="wp-btn s-btn disabled-btn">📱 Öğrenci</span>`;
 
                 let initialBorc = "0 ₺"; let initialSaat = "0 Saat";
                 if (teacherCourses.length > 0) {
-                    const firstSc = teacherCourses[0];
-                    let islenen = firstSc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0);
-                    let tahsilat = firstSc.odemeler.reduce((sum, p) => sum + p.miktar, 0);
-                    let borc = (islenen * firstSc.ucret) - tahsilat;
-                    initialSaat = `${islenen} Saat`;
-                    if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${formatMoney(borc)} ₺</span>`; } 
-                    else { initialBorc = `<span style="color:var(--success);">Borç Yok</span>`; }
+                    const firstSc = teacherCourses[0]; let islenen = firstSc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0); let tahsilat = firstSc.odemeler.reduce((sum, p) => sum + p.miktar, 0); let borc = (islenen * firstSc.ucret) - tahsilat; initialSaat = `${islenen} Saat`;
+                    if (borc > 0) { initialBorc = `<span style="color:var(--danger); font-weight:bold;">${formatMoney(borc)} ₺</span>`; } else { initialBorc = `<span style="color:var(--success);">Borç Yok</span>`; }
                 }
-
                 let rowColor = getCampusColor(student.kampus);
-
                 tbody.innerHTML += `
                     <tr style="background-color: ${rowColor}; border-bottom: 2px solid #fff;">
                         <td>
@@ -572,9 +586,7 @@
                             <div style="margin-top:4px;"><span class="badge">${student.kampus}</span> <span class="badge">${student.sinif}. Sınıf ${student.okul ? '- ' + student.okul : ''}</span></div>
                             <div style="margin-top:6px;">${wpOgrenci} ${wpVeli}</div>
                         </td>
-                        <td>${selectHTML}</td>
-                        <td id="borc_td_${index}">${initialBorc}</td>
-                        <td id="saat_td_${index}">${initialSaat}</td>
+                        <td>${selectHTML}</td><td id="borc_td_${index}">${initialBorc}</td><td id="saat_td_${index}">${initialSaat}</td>
                         <td class="actions">
                             <button class="btn-detail" onclick="openDetailModal(${index})">📝 İşlem Yap</button>
                             <button class="btn-transfer admin-only" onclick="transferStudentFromTable(${index})">📲 Transfer</button>
@@ -583,166 +595,83 @@
                     </tr>
                 `;
             });
-            document.getElementById('studentCount').textContent = `${visibleCount} Öğrenci`;
-            document.querySelectorAll('.course-select').forEach(select => { select.dispatchEvent(new Event('change')); });
+            document.getElementById('studentCount').textContent = `${visibleCount} Öğrenci`; document.querySelectorAll('.course-select').forEach(select => { select.dispatchEvent(new Event('change')); });
         }
 
         function updateTableRowStats(selectElement, studentIndex) {
-            const courseId = selectElement.value; const student = students[studentIndex];
-            const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
+            const courseId = selectElement.value; const student = students[studentIndex]; const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
             if (sc) {
-                let islenen = sc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0);
-                let tahsilat = sc.odemeler.reduce((sum, p) => sum + p.miktar, 0);
-                let borc = (islenen * sc.ucret) - tahsilat;
-                
-                document.getElementById(`saat_td_${studentIndex}`).textContent = `${islenen} Saat`;
-                if (borc > 0) { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--danger); font-weight:bold;">${formatMoney(borc)} ₺</span>`; } 
-                else { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--success);">Borç Yok</span>`; }
+                let islenen = sc.katilimlar.reduce((sum, k) => sum + (k.durum === 'Geldi' ? k.saat : 0), 0); let tahsilat = sc.odemeler.reduce((sum, p) => sum + p.miktar, 0); let borc = (islenen * sc.ucret) - tahsilat; document.getElementById(`saat_td_${studentIndex}`).textContent = `${islenen} Saat`;
+                if (borc > 0) { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--danger); font-weight:bold;">${formatMoney(borc)} ₺</span>`; } else { document.getElementById(`borc_td_${studentIndex}`).innerHTML = `<span style="color:var(--success);">Borç Yok</span>`; }
             }
         }
 
         let currentStudentIndex = -1;
         function openDetailModal(index) {
             currentStudentIndex = index; const student = students[index];
-            document.getElementById('modalStudentName').textContent = student.adSoyad;
-            document.getElementById('modalStudentInfo').textContent = `${student.kampus} Kampüsü | ${student.sinif}. Sınıf - ${student.okul} | Veli: ${student.veliAd} (${student.veliTel})`;
-            
+            document.getElementById('modalStudentName').textContent = student.adSoyad; document.getElementById('modalStudentInfo').textContent = `${student.kampus} Kampüsü | ${student.sinif}. Sınıf - ${student.okul} | Veli: ${student.veliAd} (${student.veliTel})`;
             const select = document.getElementById('modalCourseSelect'); select.innerHTML = '';
-            student.dersKayitlari.forEach((sc, i) => {
-                if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return;
-                select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`;
-            });
-
+            student.dersKayitlari.forEach((sc, i) => { if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return; select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`; });
             document.getElementById('logKatilimTarih').valueAsDate = new Date(); document.getElementById('logOdemeTarih').valueAsDate = new Date();
-            if(select.options.length > 0) { renderModalLists(); document.getElementById('detailModal').style.display = 'flex'; } 
-            else { alert("Size ait atanmış ders bulunamadı."); }
+            if(select.options.length > 0) { renderModalLists(); document.getElementById('detailModal').style.display = 'flex'; } else { alert("Size ait atanmış ders bulunamadı."); }
         }
         function closeDetailModal() { document.getElementById('detailModal').style.display = 'none'; renderTable(); }
 
         function renderModalLists() {
-            if(currentStudentIndex === -1) return;
-            const student = students[currentStudentIndex]; const courseIndex = document.getElementById('modalCourseSelect').value;
+            if(currentStudentIndex === -1) return; const student = students[currentStudentIndex]; const courseIndex = document.getElementById('modalCourseSelect').value;
             if(!courseIndex) return; const sc = student.dersKayitlari[courseIndex]; let islenen = 0;
-            
             const attList = document.getElementById('attendanceList'); attList.innerHTML = '';
             sc.katilimlar.slice().reverse().forEach((log, revIndex) => {
-                const realIndex = sc.katilimlar.length - 1 - revIndex;
-                if(log.durum === 'Geldi') islenen += log.saat;
-                const statusColor = log.durum === 'Geldi' ? 'var(--success)' : 'var(--danger)';
+                const realIndex = sc.katilimlar.length - 1 - revIndex; if(log.durum === 'Geldi') islenen += log.saat; const statusColor = log.durum === 'Geldi' ? 'var(--success)' : 'var(--danger)';
                 let vBtn = (currentUser === 'admin' || currentUser === 'teacher') ? `<a href="#" onclick="notifyParent('yoklama', ${realIndex}); return false;" title="Veliye WP Gönder" class="wp-btn v-btn ${log.veliBildirildi ? 'disabled-btn' : ''}">${log.veliBildirildi ? '✅' : 'V'}</a>` : '';
                 let yBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('yoklama', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'Y'}</a>` : '';
                 attList.innerHTML += `<div class="history-item"><span>${formatDate(log.tarih)} | <strong>${log.saat} Saat</strong> | <span style="color:${statusColor}">${log.durum}</span></span><div>${vBtn}${yBtn} <button class="btn-icon" onclick="deleteLog('attendance', ${courseIndex}, ${realIndex})">❌</button></div></div>`;
             });
-
             let tahsilat = 0; const payList = document.getElementById('paymentList'); payList.innerHTML = '';
             sc.odemeler.slice().reverse().forEach((log, revIndex) => {
                 const realIndex = sc.odemeler.length - 1 - revIndex; tahsilat += log.miktar;
                 let yBtn = (currentUser === 'teacher') ? `<a href="#" onclick="notifyAdmin('tahsilat', ${realIndex}); return false;" title="Yöneticiye WP Gönder" class="wp-btn a-btn ${log.adminBildirildi ? 'disabled-btn' : ''}">${log.adminBildirildi ? '✅' : 'Y'}</a>` : '';
-                // admin-only kısıtlaması kaldırıldı, öğretmen de silebilir
                 payList.innerHTML += `<div class="history-item"><span>${formatDate(log.tarih)} | <strong>${formatMoney(log.miktar)} ₺</strong></span><div>${yBtn} <button class="btn-icon" onclick="deleteLog('payment', ${courseIndex}, ${realIndex})">❌</button></div></div>`;
             });
-
             let hakedis = islenen * sc.ucret; let borc = hakedis - tahsilat; document.getElementById('modalSeciliBorc').textContent = `${formatMoney(borc)} ₺`;
         }
 
-        function removeStudentFromTeacherList() {
-            if(confirm('Bu öğrenciyi kendi listenizden kalıcı olarak çıkarmak istediğinize emin misiniz?')) {
-                const student = students[currentStudentIndex];
-                student.dersKayitlari = student.dersKayitlari.filter(d => d.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase());
-                saveData(); closeDetailModal(); renderCampusFilters(); renderTable();
-            }
-        }
-
-        function notifyParent(tip, idx) {
-            const student = students[currentStudentIndex]; const sc = student.dersKayitlari[document.getElementById('modalCourseSelect').value];
-            if (tip === 'yoklama') {
-                const k = sc.katilimlar[idx]; let msg = `Merhaba, ${student.adSoyad} isimli öğrencimiz ${formatDate(k.tarih)} tarihinde ${sc.brans} (${sc.ogretmen}) dersine *${k.durum}*.`;
-                k.veliBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${student.veliTel}?text=${encodeURIComponent(msg)}`, '_blank');
-            }
-        }
-
+        function removeStudentFromTeacherList() { if(confirm('Bu öğrenciyi kendi listenizden kalıcı olarak çıkarmak istediğinize emin misiniz?')) { const student = students[currentStudentIndex]; student.dersKayitlari = student.dersKayitlari.filter(d => d.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()); saveData(); closeDetailModal(); renderCampusFilters(); renderTable(); } }
+        function notifyParent(tip, idx) { const student = students[currentStudentIndex]; const sc = student.dersKayitlari[document.getElementById('modalCourseSelect').value]; if (tip === 'yoklama') { const k = sc.katilimlar[idx]; let msg = `Merhaba, ${student.adSoyad} isimli öğrencimiz ${formatDate(k.tarih)} tarihinde ${sc.brans} (${sc.ogretmen}) dersine *${k.durum}*.`; k.veliBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${student.veliTel}?text=${encodeURIComponent(msg)}`, '_blank'); } }
         function notifyAdmin(tip, idx) {
             if (currentUser === 'admin') { alert("Yönetici rolünde olduğunuz için, yaptığınız işlem doğrudan kaydedildi. Bildirim göndermenize gerek yoktur."); return; }
-            const student = students[currentStudentIndex]; const sc = student.dersKayitlari[document.getElementById('modalCourseSelect').value];
-            const baseUrl = window.location.href.split('?')[0];
-            
-            if (tip === 'yoklama') {
-                const k = sc.katilimlar[idx]; let msg = `YOKLAMA BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(k.tarih)}\nDurum: ${k.durum}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.tarih}&saat=${k.saat}&durum=${encodeURIComponent(k.durum)}`;
-                k.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-            }
-            if (tip === 'tahsilat') {
-                const p = sc.odemeler[idx]; let msg = `TAHSİLAT BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(p.tarih)}\nTutar: ${formatMoney(p.miktar)} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.tarih}&miktar=${p.miktar}`;
-                p.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-            }
+            const student = students[currentStudentIndex]; const sc = student.dersKayitlari[document.getElementById('modalCourseSelect').value]; const baseUrl = window.location.href.split('?')[0];
+            if (tip === 'yoklama') { const k = sc.katilimlar[idx]; let msg = `YOKLAMA BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(k.tarih)}\nDurum: ${k.durum}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.tarih}&saat=${k.saat}&durum=${encodeURIComponent(k.durum)}`; k.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
+            if (tip === 'tahsilat') { const p = sc.odemeler[idx]; let msg = `TAHSİLAT BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(p.tarih)}\nTutar: ${formatMoney(p.miktar)} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.tarih}&miktar=${p.miktar}`; p.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
         }
 
-        function addAttendanceLog() {
-            const tarih = document.getElementById('logKatilimTarih').value; const saat = Math.round(Number(document.getElementById('logKatilimSaat').value)); const durum = document.getElementById('logKatilimDurum').value; const courseIndex = document.getElementById('modalCourseSelect').value;
-            if(!tarih || saat <= 0) return alert("Lütfen geçerli bir tarih ve tam sayı saat girin.");
-            students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.push({ tarih, saat, durum, veliBildirildi: false, adminBildirildi: false });
-            saveData(); renderModalLists(); renderTable();
-        }
-
-        function addPaymentLog() {
-            const tarih = document.getElementById('logOdemeTarih').value; const miktar = parseFloat(document.getElementById('logOdemeMiktar').value); const courseIndex = document.getElementById('modalCourseSelect').value;
-            if(!tarih || !miktar || miktar <= 0) return alert("Lütfen geçerli tarih ve miktar girin.");
-            students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.push({ tarih, miktar, adminBildirildi: false });
-            saveData(); renderModalLists(); renderTable(); document.getElementById('logOdemeMiktar').value = '';
-        }
-
-        function deleteLog(type, courseIndex, logIndex) {
-            if(confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
-                if(type === 'attendance') students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.splice(logIndex, 1);
-                if(type === 'payment') students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.splice(logIndex, 1);
-                saveData(); renderModalLists(); renderTable();
-            }
-        }
+        function addAttendanceLog() { const tarih = document.getElementById('logKatilimTarih').value; const saat = Math.round(Number(document.getElementById('logKatilimSaat').value)); const durum = document.getElementById('logKatilimDurum').value; const courseIndex = document.getElementById('modalCourseSelect').value; if(!tarih || saat <= 0) return alert("Lütfen geçerli bir tarih ve tam sayı saat girin."); students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.push({ tarih, saat, durum, veliBildirildi: false, adminBildirildi: false }); saveData(); renderModalLists(); renderTable(); }
+        function addPaymentLog() { const tarih = document.getElementById('logOdemeTarih').value; const miktar = parseFloat(document.getElementById('logOdemeMiktar').value); const courseIndex = document.getElementById('modalCourseSelect').value; if(!tarih || !miktar || miktar <= 0) return alert("Lütfen geçerli tarih ve miktar girin."); students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.push({ tarih, miktar, adminBildirildi: false }); saveData(); renderModalLists(); renderTable(); document.getElementById('logOdemeMiktar').value = ''; }
+        function deleteLog(type, courseIndex, logIndex) { if(confirm('Bu kaydı silmek istediğinize emin misiniz?')) { if(type === 'attendance') students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.splice(logIndex, 1); if(type === 'payment') students[currentStudentIndex].dersKayitlari[courseIndex].odemeler.splice(logIndex, 1); saveData(); renderModalLists(); renderTable(); } }
 
         function transferStudentFromTable(studentIndex) {
-            const student = students[studentIndex]; const selectElement = document.getElementById(`table_course_select_${studentIndex}`);
-            if(!selectElement) return alert("Ders seçimi bulunamadı.");
-            
-            const selectedCourseId = selectElement.value; const courseInfo = coursesDB.find(c => c.id.toString() === selectedCourseId.toString());
-            if(!courseInfo || !courseInfo.ogretmenTel) return alert("Seçili dersin öğretmenine ait telefon numarası bulunamadı. Lütfen ayarlardan kontrol edin.");
-            
-            const payloadStudent = JSON.parse(JSON.stringify(student)); payloadStudent.targetTeacher = courseInfo.ogretmen;
-            payloadStudent.dersKayitlari = payloadStudent.dersKayitlari.filter(d => d.ogretmen.trim().toLowerCase() === courseInfo.ogretmen.trim().toLowerCase());
-
-            const dataStr = encodeURLSafeBase64(JSON.stringify(payloadStudent)); const baseUrl = window.location.href.split('?')[0];
-            const link = `${baseUrl}?islem=transfer&otomatikGiris=${encodeURIComponent(courseInfo.ogretmen)}&data=${dataStr}`;
+            const student = students[studentIndex]; const selectElement = document.getElementById(`table_course_select_${studentIndex}`); if(!selectElement) return alert("Ders seçimi bulunamadı.");
+            const selectedCourseId = selectElement.value; const courseInfo = coursesDB.find(c => c.id.toString() === selectedCourseId.toString()); if(!courseInfo || !courseInfo.ogretmenTel) return alert("Seçili dersin öğretmenine ait telefon numarası bulunamadı. Lütfen ayarlardan kontrol edin.");
+            const payloadStudent = JSON.parse(JSON.stringify(student)); payloadStudent.targetTeacher = courseInfo.ogretmen; payloadStudent.dersKayitlari = payloadStudent.dersKayitlari.filter(d => d.ogretmen.trim().toLowerCase() === courseInfo.ogretmen.trim().toLowerCase());
+            const dataStr = encodeURLSafeBase64(JSON.stringify(payloadStudent)); const baseUrl = window.location.href.split('?')[0]; const link = `${baseUrl}?islem=transfer&otomatikGiris=${encodeURIComponent(courseInfo.ogretmen)}&data=${dataStr}`;
             window.open(`https://wa.me/90${courseInfo.ogretmenTel}?text=${encodeURIComponent(`Sayın Öğretmenim, sisteminize yeni bir öğrenci (${student.adSoyad}) tanımlanmıştır. Kendi panelinize eklemek için aşağıdaki linke tıklayın:\n\n${link}`)}`, '_blank');
         }
 
         function editStudent(index) {
-            const student = students[index]; document.getElementById('editIndex').value = index;
-            document.getElementById('adSoyad').value = student.adSoyad; document.getElementById('kampus').value = student.kampus || ''; document.getElementById('ogrenciTel').value = student.ogrenciTel || '';
-            document.getElementById('sinif').value = student.sinif || ''; document.getElementById('okul').value = student.okul || ''; document.getElementById('veliAd').value = student.veliAd; document.getElementById('veliTel').value = student.veliTel;
-            
-            document.querySelectorAll('input[name="selectedCourses"]').forEach(cb => cb.checked = false);
-            student.dersKayitlari.forEach(sc => { const checkbox = document.querySelector(`input[name="selectedCourses"][value="${sc.courseId}"]`); if(checkbox) checkbox.checked = true; });
-
-            document.getElementById('formTitle').textContent = "Öğrenciyi Düzenle"; document.getElementById('submitBtn').textContent = "Değişiklikleri Kaydet";
-            document.getElementById('deleteBtn').style.display = "block"; document.getElementById('cancelEditBtn').style.display = "block"; window.scrollTo(0,0);
+            const student = students[index]; document.getElementById('editIndex').value = index; document.getElementById('adSoyad').value = student.adSoyad; document.getElementById('kampus').value = student.kampus || ''; document.getElementById('ogrenciTel').value = student.ogrenciTel || ''; document.getElementById('sinif').value = student.sinif || ''; document.getElementById('okul').value = student.okul || ''; document.getElementById('veliAd').value = student.veliAd; document.getElementById('veliTel').value = student.veliTel;
+            document.querySelectorAll('input[name="selectedCourses"]').forEach(cb => cb.checked = false); student.dersKayitlari.forEach(sc => { const checkbox = document.querySelector(`input[name="selectedCourses"][value="${sc.courseId}"]`); if(checkbox) checkbox.checked = true; });
+            document.getElementById('formTitle').textContent = "Öğrenciyi Düzenle"; document.getElementById('submitBtn').textContent = "Değişiklikleri Kaydet"; document.getElementById('deleteBtn').style.display = "block"; document.getElementById('cancelEditBtn').style.display = "block"; window.scrollTo(0,0);
         }
         function clearForm() {
-            document.getElementById('studentForm').reset(); document.getElementById('editIndex').value = "-1"; document.getElementById('formTitle').textContent = "Yeni Öğrenci Ekle";
-            document.getElementById('submitBtn').textContent = "Öğrenciyi Kaydet"; document.getElementById('deleteBtn').style.display = "none"; document.getElementById('cancelEditBtn').style.display = "none";
-            document.querySelectorAll('input[name="selectedCourses"]').forEach(cb => cb.checked = false);
+            document.getElementById('studentForm').reset(); document.getElementById('editIndex').value = "-1"; document.getElementById('formTitle').textContent = "Yeni Öğrenci Ekle"; document.getElementById('submitBtn').textContent = "Öğrenciyi Kaydet"; document.getElementById('deleteBtn').style.display = "none"; document.getElementById('cancelEditBtn').style.display = "none"; document.querySelectorAll('input[name="selectedCourses"]').forEach(cb => cb.checked = false);
         }
-        function deleteStudentFromForm() {
-            const idx = document.getElementById('editIndex').value;
-            if(idx > -1 && confirm('Öğrenciyi kalıcı olarak silmek istediğinize emin misiniz?')) { students.splice(idx, 1); saveData(); renderCampusFilters(); renderTable(); clearForm(); }
-        }
+        function deleteStudentFromForm() { const idx = document.getElementById('editIndex').value; if(idx > -1 && confirm('Öğrenciyi kalıcı olarak silmek istediğinize emin misiniz?')) { students.splice(idx, 1); saveData(); renderCampusFilters(); renderTable(); clearForm(); } }
 
         function saveData() { localStorage.setItem('kursOgrencileri', JSON.stringify(students)); }
         function exportBackup() { const link = document.createElement('a'); link.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify({ courses: coursesDB, students: students }, null, 2))); link.setAttribute('download', `kurs_yedek_${new Date().toISOString().slice(0,10)}.json`); link.click(); }
-        function importBackup(event) {
-            const reader = new FileReader(); reader.onload = function(e) {
-                try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); }
-            }; reader.readAsText(event.target.files[0]);
-        }
+        function importBackup(event) { const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); } }; reader.readAsText(event.target.files[0]); }
 
-        // KUSURSUZ (A4 TABLO) PDF ŞABLONU
+        // --- YENİLENMİŞ AYLIK/SÜTUNLU PDF ŞABLONU ---
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
@@ -750,6 +679,7 @@
             
             let genelToplamBorc = 0;
             let coursesHTML = '';
+            const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
             student.dersKayitlari.forEach(d => {
                 let islenen = d.katilimlar.reduce((s,k) => s + (k.durum==='Geldi'?k.saat:0), 0);
@@ -757,8 +687,35 @@
                 let hak = islenen * d.ucret; let borc = hak - odenen;
                 genelToplamBorc += borc;
 
-                let katilimText = d.katilimlar.length > 0 ? d.katilimlar.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join('<br>') : 'Kayıt yok';
-                let tahsilatText = d.odemeler.length > 0 ? d.odemeler.map(p => `${formatDate(p.tarih)} - ${formatMoney(p.miktar)} ₺`).join('<br>') : 'Kayıt yok';
+                // 1. Katılımları Ay ve Yıla Göre Grupla
+                let attByMonth = {};
+                d.katilimlar.forEach(k => {
+                    let parts = k.tarih.split('-'); // format yyyy-mm-dd
+                    if(parts.length === 3) {
+                        let mName = monthNames[parseInt(parts[1])-1] + " " + parts[0];
+                        if(!attByMonth[mName]) attByMonth[mName] = [];
+                        attByMonth[mName].push(k);
+                    }
+                });
+
+                // 2. Katılım Grid'ini Oluştur (3 Sütun Yan Yana)
+                let katilimGridHTML = `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; font-size:12px; margin-top:5px;">`;
+                if(Object.keys(attByMonth).length === 0) {
+                    katilimGridHTML += `<div>Kayıt Yok</div>`;
+                } else {
+                    for(const [mName, kArr] of Object.entries(attByMonth)) {
+                        let monthStr = `<div style="margin-bottom:10px;"><strong><u>${mName}</u></strong><br>`;
+                        monthStr += kArr.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join('<br>');
+                        monthStr += `</div>`;
+                        katilimGridHTML += monthStr;
+                    }
+                }
+                katilimGridHTML += `</div>`;
+
+                // 3. Tahsilatları 2 Sütunlu Formatta (column-count) Oluştur
+                let tahsilatText = d.odemeler.length > 0 
+                    ? `<div style="column-count: 2; column-gap: 15px; font-size:12px; margin-top:5px;">` + d.odemeler.map(p => `${formatDate(p.tarih)} <br> ${formatMoney(p.miktar)} ₺`).join('<br><br>') + `</div>` 
+                    : '<span style="font-size:12px; display:inline-block; margin-top:5px;">Kayıt yok</span>';
 
                 coursesHTML += `
                 <div style="page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; overflow: hidden; background: #fff;">
@@ -768,17 +725,20 @@
                     </div>
                     <table style="width: 100%; border-collapse: collapse; background: #fff;">
                         <tr>
-                            <td style="width: 50%; padding: 15px; vertical-align: top; border-right: 1px solid #cbd5e1;">
-                                <strong>Katılım Dökümü:</strong><br>
-                                <span style="font-size: 13px; display:inline-block; margin-top:5px;">${katilimText}</span>
-                                <br><br><em style="color:#64748b; font-size: 12px;">Toplam İşlenen: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺)</em>
-                                <br><strong style="color:#2563eb; font-size:14px;">Hak Ediş: ${formatMoney(hak)} ₺</strong>
+                            <td style="width: 55%; padding: 15px; vertical-align: top; border-right: 1px solid #cbd5e1;">
+                                <strong style="display:block; margin-bottom:5px; color:#1e293b;">Katılım Dökümü:</strong>
+                                ${katilimGridHTML}
+                                <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
+                                    <em style="color:#64748b; font-size: 12px;">Toplam: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺)</em><br>
+                                    <strong style="color:#2563eb; font-size:14px;">Hak Ediş: ${formatMoney(hak)} ₺</strong>
+                                </div>
                             </td>
-                            <td style="width: 50%; padding: 15px; vertical-align: top;">
-                                <strong>Tahsilat Dökümü:</strong><br>
-                                <span style="font-size: 13px; display:inline-block; margin-top:5px;">${tahsilatText}</span>
-                                <br><br>
-                                <strong style="color:#ef4444; font-size:14px;">Toplam Ödenen: ${formatMoney(odenen)} ₺</strong>
+                            <td style="width: 45%; padding: 15px; vertical-align: top;">
+                                <strong style="display:block; margin-bottom:5px; color:#1e293b;">Tahsilat Dökümü:</strong>
+                                ${tahsilatText}
+                                <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
+                                    <strong style="color:#ef4444; font-size:14px;">Toplam Ödenen: ${formatMoney(odenen)} ₺</strong>
+                                </div>
                             </td>
                         </tr>
                     </table>
@@ -787,11 +747,11 @@
 
             // Arka planda oluşturulacak sabit (800px) A4 HTML iskeleti
             let html = `
-            <div style="font-family: Arial, sans-serif; font-size: 14px; width: 800px; padding: 20px; box-sizing: border-box; background: #fff;">
+            <div style="font-family: Arial, sans-serif; font-size: 14px; width: 800px; padding: 10px; box-sizing: border-box; background: #fff;">
                 <h1 style="text-align: center; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top:0;">VELİ BİLGİLENDİRME EKSTRESİ</h1>
                 <p style="text-align: right; font-size: 12px; margin-top:-10px;">Rapor Tarihi: ${formatDate(new Date().toISOString().slice(0,10))}</p>
                 
-                <div style="margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; line-height:1.6; border: 1px solid #cbd5e1;">
+                <div style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; line-height:1.6; border: 1px solid #cbd5e1;">
                     <table style="width: 100%; border: none;">
                         <tr>
                             <td style="width: 50%; border:none; padding:0;"><strong>Öğrenci:</strong> ${student.adSoyad}</td>
@@ -811,11 +771,12 @@
             
             element.innerHTML = html;
             
+            // windowWidth: 800 ile A4 taşmasını kökten çözen ayar.
             const opt = {
-                margin:       0.4, 
+                margin:       0.3, 
                 filename:     `${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
+                html2canvas:  { scale: 2, windowWidth: 800 },
                 jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
             
