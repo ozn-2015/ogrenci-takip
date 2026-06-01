@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V10.7 - Kusursuz Z-Index PDF)</title>
+    <title>Kurs Takip Asistanı (V11.0 - Profesyonel PDF)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         :root {
             --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; --text: #1e293b;
@@ -95,7 +98,6 @@
                 <select id="loginTeacherSelect" style="margin-bottom: 15px; padding: 12px;"></select>
                 <button class="login-btn btn-teacher" onclick="loginAs('teacher')">👨‍🏫 Öğretmen Olarak Devam Et</button>
             </div>
-            
             <div id="adminLoginView" style="display:none;">
                 <h2 style="margin-bottom: 15px; border:none;">Yönetici Şifresi</h2>
                 <input type="password" id="adminPassInput" placeholder="PIN Kodunuzu Girin" style="margin-bottom: 15px; text-align:center; font-size:1.2rem; letter-spacing:3px;">
@@ -105,7 +107,6 @@
                     <button onclick="showForgotPassword()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:bold;">Şifremi Unuttum?</button>
                 </div>
             </div>
-
             <div id="forgotPassView" style="display:none;">
                 <h2 style="margin-bottom: 15px; border:none; color:var(--danger);">Şifre Kurtarma</h2>
                 <p id="secQuestionDisplay" style="font-weight:bold; margin-bottom:10px; color:var(--text);"></p>
@@ -668,140 +669,148 @@
         function importBackup(event) { const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); } }; reader.readAsText(event.target.files[0]); }
 
 
-        // --- KUSURSUZ (FİZİKSEL DOM ENTEGRELİ + Z-INDEX) PDF ŞABLONU ---
+        // --- YENİ PROFESYONEL PDF MOTORU (jsPDF + AutoTable) ---
+        
+        // Türkçe karakterleri sorunsuz PDF çıktısı için İngilizce karakterlere çeviren güvenli dönüştürücü
+        function convertTrForPDF(text) {
+            if (!text) return '';
+            return text.toString()
+                .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+                .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+                .replace(/Ş/g, 'S').replace(/ş/g, 's')
+                .replace(/İ/g, 'I').replace(/ı/g, 'i')
+                .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+                .replace(/Ç/g, 'C').replace(/ç/g, 'c');
+        }
+
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
             
-            // 1. FİZİKSEL DOM ELEMANI OLUŞTURMA (Gizli Katman - Z-Index -1000)
-            const element = document.createElement('div');
-            element.style.position = 'absolute';
-            element.style.top = '0';
-            element.style.left = '0';
-            element.style.zIndex = '-1000'; // Arka plan katmanına alındı (kullanıcı görmez)
-            element.style.width = '800px';   
-            element.style.backgroundColor = '#ffffff';
-            element.style.padding = '20px';
-            element.style.boxSizing = 'border-box';
-            document.body.appendChild(element); // DOM'A EKLENDİ!
+            // jsPDF Kütüphanesini Başlat
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4'); // Dikey, Milimetre, A4 Formatı
             
+            let y = 20; // Yukarıdan 20mm boşlukla başla
+
+            // Kuruma Kalan Genel Toplam Borç Hesaplaması
             let genelToplamBorc = 0;
-            let coursesHTML = '';
-            const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-
             student.dersKayitlari.forEach(d => {
-                let islenen = d.katilimlar.reduce((s,k) => s + (k.durum==='Geldi'?k.saat:0), 0);
+                let islenen = d.katilimlar.reduce((s,k) => s + (k.durum === 'Geldi' ? k.saat : 0), 0);
                 let odenen = d.odemeler.reduce((s,p) => s + p.miktar, 0);
-                let hak = islenen * d.ucret; let borc = hak - odenen;
-                genelToplamBorc += borc;
-
-                let attByMonth = {};
-                d.katilimlar.forEach(k => {
-                    let parts = k.tarih.split('-'); 
-                    if(parts.length === 3) {
-                        let mName = monthNames[parseInt(parts[1])-1] + " " + parts[0];
-                        if(!attByMonth[mName]) attByMonth[mName] = [];
-                        attByMonth[mName].push(k);
-                    }
-                });
-
-                let monthKeys = Object.keys(attByMonth);
-                let katilimTableHTML = `<table style="width:100%; border-collapse: collapse; font-size:12px; border:none; margin-top:5px;">`;
-                if(monthKeys.length === 0) {
-                    katilimTableHTML += `<tr><td style="border:none;">Kayıt Yok</td></tr>`;
-                } else {
-                    for(let i = 0; i < monthKeys.length; i += 3) {
-                        katilimTableHTML += `<tr>`;
-                        for(let j = 0; j < 3; j++) {
-                            if(i + j < monthKeys.length) {
-                                let mName = monthKeys[i+j]; let kArr = attByMonth[mName];
-                                let monthStr = `<strong><u>${mName}</u></strong><br>` + kArr.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join('<br>');
-                                katilimTableHTML += `<td style="vertical-align:top; width:33.33%; padding:5px; border:none; line-height:1.4;">${monthStr}</td>`;
-                            } else { katilimTableHTML += `<td style="width:33.33%; border:none;"></td>`; }
-                        }
-                        katilimTableHTML += `</tr>`;
-                    }
-                }
-                katilimTableHTML += `</table>`;
-
-                let tahsilatTableHTML = `<table style="width:100%; border-collapse: collapse; font-size:12px; border:none; margin-top:5px;"><tr>`;
-                if(d.odemeler.length === 0) {
-                    tahsilatTableHTML += `<td style="border:none;">Kayıt yok</td>`;
-                } else {
-                    let half = Math.ceil(d.odemeler.length / 2);
-                    let leftCol = d.odemeler.slice(0, half); let rightCol = d.odemeler.slice(half);
-                    let leftStr = leftCol.map(p => `${formatDate(p.tarih)} - ${formatMoney(p.miktar)} ₺`).join('<br>');
-                    let rightStr = rightCol.map(p => `${formatDate(p.tarih)} - ${formatMoney(p.miktar)} ₺`).join('<br>');
-                    tahsilatTableHTML += `<td style="vertical-align:top; width:50%; padding:5px; border:none; line-height:1.4;">${leftStr}</td>`;
-                    tahsilatTableHTML += `<td style="vertical-align:top; width:50%; padding:5px; border:none; line-height:1.4;">${rightStr}</td>`;
-                }
-                tahsilatTableHTML += `</tr></table>`;
-
-                coursesHTML += `
-                <div style="page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; overflow: hidden; background: #fff;">
-                    <div style="background: #f1f5f9; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #cbd5e1; font-size: 15px;">
-                        ${d.brans} Dersi (Öğretmen: ${d.ogretmen}) 
-                        <span style="float:right; color:#ef4444;">Ders Borcu: ${formatMoney(borc)} ₺</span>
-                    </div>
-                    <table style="width: 100%; border-collapse: collapse; background: #fff; margin:0;">
-                        <tr>
-                            <td style="width: 55%; padding: 15px; vertical-align: top; border-right: 1px solid #cbd5e1; border-bottom:none;">
-                                <strong style="display:block; margin-bottom:5px; color:#1e293b;">Katılım Dökümü:</strong>
-                                ${katilimTableHTML}
-                                <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
-                                    <em style="color:#64748b; font-size: 12px;">Toplam: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺)</em><br>
-                                    <strong style="color:#2563eb; font-size:14px;">Hak Ediş: ${formatMoney(hak)} ₺</strong>
-                                </div>
-                            </td>
-                            <td style="width: 45%; padding: 15px; vertical-align: top; border-bottom:none;">
-                                <strong style="display:block; margin-bottom:5px; color:#1e293b;">Tahsilat Dökümü:</strong>
-                                ${tahsilatTableHTML}
-                                <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
-                                    <strong style="color:#ef4444; font-size:14px;">Toplam Ödenen: ${formatMoney(odenen)} ₺</strong>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>`;
+                genelToplamBorc += ((islenen * d.ucret) - odenen);
             });
 
-            let html = `
-            <div style="font-family: Arial, sans-serif; font-size: 14px; background: #fff;">
-                <h1 style="text-align: center; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top:0;">VELİ BİLGİLENDİRME EKSTRESİ</h1>
-                <p style="text-align: right; font-size: 12px; margin-top:-10px;">Rapor Tarihi: ${formatDate(new Date().toISOString().slice(0,10))}</p>
+            // --- ÜST BİLGİ (ANTET) ---
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text(convertTrForPDF("VELI BILGILENDIRME EKSTRESI"), 105, y, { align: 'center' });
+            y += 8;
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(convertTrForPDF("Rapor Tarihi: " + formatDate(new Date().toISOString().slice(0,10))), 195, y, { align: 'right' });
+            y += 10;
+
+            // --- ÖĞRENCİ BİLGİLERİ ---
+            doc.setFontSize(11);
+            doc.text(convertTrForPDF(`Ogrenci : ${student.adSoyad}`), 15, y);
+            doc.text(convertTrForPDF(`Okul/Sinif: ${student.sinif}. Sinif - ${student.okul}`), 110, y);
+            y += 6;
+            doc.text(convertTrForPDF(`Veli    : ${student.veliAd} (${student.veliTel})`), 15, y);
+            doc.text(convertTrForPDF(`Kampus    : ${student.kampus || 'Merkez'}`), 110, y);
+            y += 10;
+            
+            // --- GENEL BORÇ ÖZETİ ---
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(220, 38, 38); // Kırmızı (Danger) Renk
+            doc.text(convertTrForPDF(`*** KURUMA KALAN TOPLAM BORC: ${formatMoney(genelToplamBorc)} TL ***`), 105, y, { align: 'center' });
+            doc.setTextColor(0, 0, 0); // Rengi siyaha geri döndür
+            doc.setFont("helvetica", "normal");
+            y += 10;
+            
+            doc.setDrawColor(200, 200, 200); // Çizgi rengi
+            doc.line(15, y, 195, y);
+            y += 10;
+
+            // --- DERSLERİN DÖNGÜSÜ ---
+            student.dersKayitlari.forEach((d, index) => {
+                let islenen = d.katilimlar.reduce((s,k) => s + (k.durum === 'Geldi' ? k.saat : 0), 0);
+                let odenen = d.odemeler.reduce((s,p) => s + p.miktar, 0);
+                let hakEdis = islenen * d.ucret;
+                let borc = hakEdis - odenen;
+
+                // Yeni sayfaya geçiş kontrolü (Sayfa sonuna yaklaşıldıysa)
+                if (y > 240) { doc.addPage(); y = 20; }
+
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.text(convertTrForPDF(`DERS: ${d.brans} (Ogretmen: ${d.ogretmen})`), 15, y);
+                doc.setFont("helvetica", "normal");
+                y += 8;
+
+                let startYTables = y; // Tabloların aynı hizada başlaması için Y noktasını sabitle
+
+                // --- SOL TABLO: YOKLAMA ---
+                let katilimData = d.katilimlar.map(k => [formatDate(k.tarih), k.saat + " Saat", convertTrForPDF(k.durum)]);
+                if(katilimData.length === 0) katilimData = [[convertTrForPDF("Kayit yok"), "", ""]];
                 
-                <div style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; line-height:1.6; border: 1px solid #cbd5e1;">
-                    <table style="width: 100%; border-collapse: collapse; border: none; margin:0;">
-                        <tr>
-                            <td style="width: 50%; border:none; padding:2px 0;"><strong>Öğrenci:</strong> ${student.adSoyad}</td>
-                            <td style="width: 50%; border:none; padding:2px 0; text-align:right;"><strong>Okul/Sınıf:</strong> ${student.sinif}. Sınıf - ${student.okul}</td>
-                        </tr>
-                        <tr>
-                            <td style="border:none; padding:2px 0;"><strong>Veli:</strong> ${student.veliAd} (${student.veliTel})</td>
-                            <td style="border:none; padding:2px 0; text-align:right;"><strong>Kampüs:</strong> ${student.kampus || 'Belirtilmedi'}</td>
-                        </tr>
-                    </table>
-                    <div style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #ef4444; text-align:center; padding-top:10px; border-top: 1px solid #cbd5e1;">
-                        Kuruma Kalan Toplam Borç: ${formatMoney(genelToplamBorc)} ₺
-                    </div>
-                </div>
-                ${coursesHTML}
-            </div>`;
-            
-            element.innerHTML = html;
-            
-            // 2. OLUŞTURMA VE TEMİZLEME
-            const opt = {
-                margin:       0.3, 
-                filename:     `${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true }, 
-                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-            };
-            
-            html2pdf().set(opt).from(element).save().then(() => {
-                document.body.removeChild(element); // İşlem bitince arka planı siler (Temizlik)
+                doc.autoTable({
+                    startY: startYTables,
+                    margin: { left: 15 },
+                    tableWidth: 85, // A4 kağıdında sol yarı
+                    head: [[convertTrForPDF('Tarih'), convertTrForPDF('Saat'), convertTrForPDF('Durum')]],
+                    body: katilimData,
+                    styles: { fontSize: 8, font: 'helvetica' },
+                    headStyles: { fillColor: [37, 99, 235] }, // Primary Mavi
+                    theme: 'striped'
+                });
+                let leftFinalY = doc.lastAutoTable.finalY; // Sol tablonun bittiği milimetre
+
+                // --- SAĞ TABLO: TAHSİLAT ---
+                let odemeData = d.odemeler.map(p => [formatDate(p.tarih), formatMoney(p.miktar) + " TL"]);
+                if(odemeData.length === 0) odemeData = [[convertTrForPDF("Kayit yok"), ""]];
+
+                doc.autoTable({
+                    startY: startYTables,
+                    margin: { left: 110 },
+                    tableWidth: 85, // A4 kağıdında sağ yarı
+                    head: [[convertTrForPDF('Tarih'), convertTrForPDF('Tutar')]],
+                    body: odemeData,
+                    styles: { fontSize: 8, font: 'helvetica' },
+                    headStyles: { fillColor: [16, 185, 129] }, // Success Yeşil
+                    theme: 'striped'
+                });
+                let rightFinalY = doc.lastAutoTable.finalY; // Sağ tablonun bittiği milimetre
+
+                // Hangi tablo daha uzunsa, bir sonraki yazıyı onun altından başlat
+                y = Math.max(leftFinalY, rightFinalY) + 10;
+
+                // --- DERSİN ÖZET ALT BİLGİSİ ---
+                if (y > 270) { doc.addPage(); y = 20; } // Sığmazsa yeni sayfa
+                
+                doc.setFontSize(9);
+                doc.text(convertTrForPDF(`Toplam Islenen : ${islenen} Saat`), 15, y);
+                doc.text(convertTrForPDF(`Toplam Odenen : ${formatMoney(odenen)} TL`), 110, y);
+                y += 5;
+                doc.text(convertTrForPDF(`Hak Edis       : ${formatMoney(hakEdis)} TL`), 15, y);
+                y += 5;
+                
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(37, 99, 235); // Mavi Vurgu
+                doc.text(convertTrForPDF(`>>> Bu Dersten Kalan Borc: ${formatMoney(borc)} TL <<<`), 105, y, { align: 'center' });
+                doc.setTextColor(0, 0, 0); // Siyaha geri dön
+                doc.setFont("helvetica", "normal");
+                
+                y += 10;
+                doc.setDrawColor(200, 200, 200);
+                doc.line(15, y, 195, y); // Dersler arası ince çizgi
+                y += 10;
             });
+
+            // PDF'i İndir
+            doc.save(convertTrForPDF(`${student.adSoyad}_Ekstre.pdf`));
         }
     </script>
 </body>
