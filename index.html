@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V10.6 - Kusursuz DOM PDF)</title>
+    <title>Kurs Takip Asistanı (V10.7 - Kusursuz Z-Index PDF)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -668,17 +668,18 @@
         function importBackup(event) { const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); } }; reader.readAsText(event.target.files[0]); }
 
 
-        // --- KUSURSUZ (FİZİKSEL DOM ENTEGRELİ) PDF ŞABLONU ---
+        // --- KUSURSUZ (FİZİKSEL DOM ENTEGRELİ + Z-INDEX) PDF ŞABLONU ---
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
             
-            // 1. FİZİKSEL DOM ELEMANI OLUŞTURMA (Gizli ama boyutları belli)
+            // 1. FİZİKSEL DOM ELEMANI OLUŞTURMA (Gizli Katman - Z-Index -1000)
             const element = document.createElement('div');
             element.style.position = 'absolute';
-            element.style.left = '-9999px';  // Ekranın dışında görünmez
             element.style.top = '0';
-            element.style.width = '800px';   // Sabit A4 en oranı
+            element.style.left = '0';
+            element.style.zIndex = '-1000'; // Arka plan katmanına alındı (kullanıcı görmez)
+            element.style.width = '800px';   
             element.style.backgroundColor = '#ffffff';
             element.style.padding = '20px';
             element.style.boxSizing = 'border-box';
@@ -794,12 +795,12 @@
                 margin:       0.3, 
                 filename:     `${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true }, // windowWidth kaldırıldı, çünkü element artık DOM'da fiziksel 800px!
+                html2canvas:  { scale: 2, useCORS: true }, 
                 jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
             
             html2pdf().set(opt).from(element).save().then(() => {
-                document.body.removeChild(element); // İşlem bitince gizli alanı siler (Temizlik)
+                document.body.removeChild(element); // İşlem bitince arka planı siler (Temizlik)
             });
         }
     </script>
