@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V10.0 - Güvenlik & Smart PDF)</title>
+    <title>Kurs Takip Asistanı (V10.5 - Kusursuz Raporlama)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -286,7 +286,6 @@
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
         let adminPhone = localStorage.getItem('kursAdminPhone') || "";
         
-        // GÜVENLİK DEĞİŞKENLERİ
         let adminPassword = localStorage.getItem('kursAdminPass') || "1234";
         let securityQuestion = localStorage.getItem('kursSecQ') || "İlk evcil hayvanınız?";
         let securityAnswer = localStorage.getItem('kursSecA') || "admin";
@@ -322,7 +321,7 @@
             checkUrlParameters(); 
             checkLoginStatus();
             document.getElementById('setAdminPhone').value = adminPhone;
-            document.getElementById('setSecQ').value = securityQuestion; // Ayarlardaki soruyu doldur
+            document.getElementById('setSecQ').value = securityQuestion; 
             sortStudents();
             renderCourseCheckboxes();
             renderTable();
@@ -330,7 +329,7 @@
             renderSettingsTable();
         };
 
-        // --- GÜVENLİK VE GİRİŞ (LOGIN) İŞLEMLERİ ---
+        // --- GÜVENLİK VE GİRİŞ İŞLEMLERİ ---
         function showAdminLoginPrompt() {
             document.getElementById('mainLoginView').style.display = 'none';
             document.getElementById('adminLoginView').style.display = 'block';
@@ -454,7 +453,7 @@
         }
         function logout() { 
             document.getElementById('loginOverlay').style.display = 'flex'; 
-            cancelAdminLogin(); // Ekranı resetle
+            cancelAdminLogin(); 
             currentTeacher = ''; currentUser = 'admin'; document.body.className = 'admin-mode';
             populateTeacherSelect(); renderCampusFilters();
         }
@@ -463,7 +462,6 @@
             alert("Muhasebe modülü yapım aşamasındadır, yakında github üzerinden aktif edilecektir.");
         }
 
-        // --- VERİ MİRASI VE DÜZENLEME FONKSİYONLARI ---
         function sortStudents() {
             students.sort((a, b) => {
                 let campusA = (a.kampus || "Merkez").toLowerCase(); let campusB = (b.kampus || "Merkez").toLowerCase();
@@ -489,7 +487,6 @@
             if (needsSave) { sortStudents(); saveData(); }
         }
 
-        // --- KAMPÜS FİLTRE VE TABLO RENDER ---
         function renderCampusFilters() {
             const container = document.getElementById('campusFiltersGrid');
             const searchVal = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
@@ -514,12 +511,11 @@
             if(campusName === 'All') document.getElementById('btnCampTumu').classList.add('active'); else document.getElementById('btnCamp_' + campusName.replace(/\s+/g, '')).classList.add('active');
             renderTable();
         }
-
         function filterTable() { renderTable(); }
-
         function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
         function saveAdminPhone() { adminPhone = document.getElementById('setAdminPhone').value; localStorage.setItem('kursAdminPhone', adminPhone); alert("Yönetici numarası kaydedildi."); }
+        
         function addCourseSetting() {
             const brans = document.getElementById('setBrans').value.trim(); const ogretmen = document.getElementById('setOgretmen').value.trim();
             const ogretmenTel = document.getElementById('setOgretmenTel').value.trim(); const ucret = parseInt(document.getElementById('setUcret').value);
@@ -671,7 +667,8 @@
         function exportBackup() { const link = document.createElement('a'); link.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify({ courses: coursesDB, students: students }, null, 2))); link.setAttribute('download', `kurs_yedek_${new Date().toISOString().slice(0,10)}.json`); link.click(); }
         function importBackup(event) { const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); } }; reader.readAsText(event.target.files[0]); }
 
-        // --- YENİLENMİŞ AYLIK/SÜTUNLU PDF ŞABLONU ---
+
+        // --- KUSURSUZ (HTML TABLE) PDF ŞABLONU ---
         function generateAdvancedPDF() {
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
@@ -687,10 +684,10 @@
                 let hak = islenen * d.ucret; let borc = hak - odenen;
                 genelToplamBorc += borc;
 
-                // 1. Katılımları Ay ve Yıla Göre Grupla
+                // 1. Katılımları Aylara Göre Grupla
                 let attByMonth = {};
                 d.katilimlar.forEach(k => {
-                    let parts = k.tarih.split('-'); // format yyyy-mm-dd
+                    let parts = k.tarih.split('-'); // yyyy-mm-dd
                     if(parts.length === 3) {
                         let mName = monthNames[parseInt(parts[1])-1] + " " + parts[0];
                         if(!attByMonth[mName]) attByMonth[mName] = [];
@@ -698,24 +695,43 @@
                     }
                 });
 
-                // 2. Katılım Grid'ini Oluştur (3 Sütun Yan Yana)
-                let katilimGridHTML = `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; font-size:12px; margin-top:5px;">`;
-                if(Object.keys(attByMonth).length === 0) {
-                    katilimGridHTML += `<div>Kayıt Yok</div>`;
+                // 2. Katılım Tablosu (CSS Grid YERİNE Geleneksel Table)
+                let monthKeys = Object.keys(attByMonth);
+                let katilimTableHTML = `<table style="width:100%; border-collapse: collapse; font-size:12px; border:none; margin-top:5px;">`;
+                if(monthKeys.length === 0) {
+                    katilimTableHTML += `<tr><td style="border:none;">Kayıt Yok</td></tr>`;
                 } else {
-                    for(const [mName, kArr] of Object.entries(attByMonth)) {
-                        let monthStr = `<div style="margin-bottom:10px;"><strong><u>${mName}</u></strong><br>`;
-                        monthStr += kArr.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join('<br>');
-                        monthStr += `</div>`;
-                        katilimGridHTML += monthStr;
+                    for(let i = 0; i < monthKeys.length; i += 3) {
+                        katilimTableHTML += `<tr>`;
+                        for(let j = 0; j < 3; j++) {
+                            if(i + j < monthKeys.length) {
+                                let mName = monthKeys[i+j];
+                                let kArr = attByMonth[mName];
+                                let monthStr = `<strong><u>${mName}</u></strong><br>` + kArr.map(k => `${formatDate(k.tarih)} (${k.saat}s)`).join('<br>');
+                                katilimTableHTML += `<td style="vertical-align:top; width:33.33%; padding:5px; border:none; line-height:1.4;">${monthStr}</td>`;
+                            } else {
+                                katilimTableHTML += `<td style="width:33.33%; border:none;"></td>`;
+                            }
+                        }
+                        katilimTableHTML += `</tr>`;
                     }
                 }
-                katilimGridHTML += `</div>`;
+                katilimTableHTML += `</table>`;
 
-                // 3. Tahsilatları 2 Sütunlu Formatta (column-count) Oluştur
-                let tahsilatText = d.odemeler.length > 0 
-                    ? `<div style="column-count: 2; column-gap: 15px; font-size:12px; margin-top:5px;">` + d.odemeler.map(p => `${formatDate(p.tarih)} <br> ${formatMoney(p.miktar)} ₺`).join('<br><br>') + `</div>` 
-                    : '<span style="font-size:12px; display:inline-block; margin-top:5px;">Kayıt yok</span>';
+                // 3. Tahsilat Tablosu (Ortadan İkiye Bölünmüş Geleneksel Table)
+                let tahsilatTableHTML = `<table style="width:100%; border-collapse: collapse; font-size:12px; border:none; margin-top:5px;"><tr>`;
+                if(d.odemeler.length === 0) {
+                    tahsilatTableHTML += `<td style="border:none;">Kayıt yok</td>`;
+                } else {
+                    let half = Math.ceil(d.odemeler.length / 2);
+                    let leftCol = d.odemeler.slice(0, half);
+                    let rightCol = d.odemeler.slice(half);
+                    let leftStr = leftCol.map(p => `${formatDate(p.tarih)} - ${formatMoney(p.miktar)} ₺`).join('<br>');
+                    let rightStr = rightCol.map(p => `${formatDate(p.tarih)} - ${formatMoney(p.miktar)} ₺`).join('<br>');
+                    tahsilatTableHTML += `<td style="vertical-align:top; width:50%; padding:5px; border:none; line-height:1.4;">${leftStr}</td>`;
+                    tahsilatTableHTML += `<td style="vertical-align:top; width:50%; padding:5px; border:none; line-height:1.4;">${rightStr}</td>`;
+                }
+                tahsilatTableHTML += `</tr></table>`;
 
                 coursesHTML += `
                 <div style="page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; overflow: hidden; background: #fff;">
@@ -723,19 +739,19 @@
                         ${d.brans} Dersi (Öğretmen: ${d.ogretmen}) 
                         <span style="float:right; color:#ef4444;">Ders Borcu: ${formatMoney(borc)} ₺</span>
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; background: #fff;">
+                    <table style="width: 100%; border-collapse: collapse; background: #fff; margin:0;">
                         <tr>
-                            <td style="width: 55%; padding: 15px; vertical-align: top; border-right: 1px solid #cbd5e1;">
+                            <td style="width: 55%; padding: 15px; vertical-align: top; border-right: 1px solid #cbd5e1; border-bottom:none;">
                                 <strong style="display:block; margin-bottom:5px; color:#1e293b;">Katılım Dökümü:</strong>
-                                ${katilimGridHTML}
+                                ${katilimTableHTML}
                                 <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
                                     <em style="color:#64748b; font-size: 12px;">Toplam: ${islenen} Saat (Saat Ücreti: ${formatMoney(d.ucret)} ₺)</em><br>
                                     <strong style="color:#2563eb; font-size:14px;">Hak Ediş: ${formatMoney(hak)} ₺</strong>
                                 </div>
                             </td>
-                            <td style="width: 45%; padding: 15px; vertical-align: top;">
+                            <td style="width: 45%; padding: 15px; vertical-align: top; border-bottom:none;">
                                 <strong style="display:block; margin-bottom:5px; color:#1e293b;">Tahsilat Dökümü:</strong>
-                                ${tahsilatText}
+                                ${tahsilatTableHTML}
                                 <div style="margin-top:15px; padding-top:10px; border-top:1px dashed #ccc;">
                                     <strong style="color:#ef4444; font-size:14px;">Toplam Ödenen: ${formatMoney(odenen)} ₺</strong>
                                 </div>
@@ -745,21 +761,21 @@
                 </div>`;
             });
 
-            // Arka planda oluşturulacak sabit (800px) A4 HTML iskeleti
+            // Sabit Genişlikli (800px) A4 İskeleti (Flex/Grid yok)
             let html = `
-            <div style="font-family: Arial, sans-serif; font-size: 14px; width: 800px; padding: 10px; box-sizing: border-box; background: #fff;">
+            <div style="font-family: Arial, sans-serif; font-size: 14px; width: 800px; padding: 0; box-sizing: border-box; background: #fff;">
                 <h1 style="text-align: center; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top:0;">VELİ BİLGİLENDİRME EKSTRESİ</h1>
                 <p style="text-align: right; font-size: 12px; margin-top:-10px;">Rapor Tarihi: ${formatDate(new Date().toISOString().slice(0,10))}</p>
                 
                 <div style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; line-height:1.6; border: 1px solid #cbd5e1;">
-                    <table style="width: 100%; border: none;">
+                    <table style="width: 100%; border-collapse: collapse; border: none; margin:0;">
                         <tr>
-                            <td style="width: 50%; border:none; padding:0;"><strong>Öğrenci:</strong> ${student.adSoyad}</td>
-                            <td style="width: 50%; border:none; padding:0; text-align:right;"><strong>Okul/Sınıf:</strong> ${student.sinif}. Sınıf - ${student.okul}</td>
+                            <td style="width: 50%; border:none; padding:2px 0;"><strong>Öğrenci:</strong> ${student.adSoyad}</td>
+                            <td style="width: 50%; border:none; padding:2px 0; text-align:right;"><strong>Okul/Sınıf:</strong> ${student.sinif}. Sınıf - ${student.okul}</td>
                         </tr>
                         <tr>
-                            <td style="border:none; padding:0;"><strong>Veli:</strong> ${student.veliAd} (${student.veliTel})</td>
-                            <td style="border:none; padding:0; text-align:right;"><strong>Kampüs:</strong> ${student.kampus || 'Belirtilmedi'}</td>
+                            <td style="border:none; padding:2px 0;"><strong>Veli:</strong> ${student.veliAd} (${student.veliTel})</td>
+                            <td style="border:none; padding:2px 0; text-align:right;"><strong>Kampüs:</strong> ${student.kampus || 'Belirtilmedi'}</td>
                         </tr>
                     </table>
                     <div style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #ef4444; text-align:center; padding-top:10px; border-top: 1px solid #cbd5e1;">
@@ -771,12 +787,12 @@
             
             element.innerHTML = html;
             
-            // windowWidth: 800 ile A4 taşmasını kökten çözen ayar.
+            // PDF Ayarları: Kenar boşluğunu kıstım, windowWidth: 800 sabitledim.
             const opt = {
-                margin:       0.3, 
+                margin:       0.2, 
                 filename:     `${student.adSoyad.replace(/\s+/g, '_')}_Ekstre.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, windowWidth: 800 },
+                html2canvas:  { scale: 2, windowWidth: 800, useCORS: true },
                 jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
             
