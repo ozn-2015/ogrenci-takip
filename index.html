@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V11.2 - Akıllı Senkron ve Yönlendirme)</title>
+    <title>Kurs Takip Asistanı (V11.3 - Muhasebe Entegreli Ana Kod)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     
@@ -126,7 +126,7 @@
     <div class="container">
         <div class="panel admin-only" id="leftPanel">
             <button class="btn-settings" onclick="openSettingsModal()">⚙️ Öğretmen & Güvenlik Ayarları</button>
-            <button class="btn-muhasebe" onclick="goToMuhasebe()">💼 Muhasebe Modülüne Git</button>
+            <button class="btn-muhasebe" onclick="window.location.href='muhasebe.html'">💼 Muhasebe Modülüne Git</button>
             
             <h2 id="formTitle" style="margin-top: 10px;">Yeni Öğrenci Ekle</h2>
             <form id="studentForm">
@@ -413,7 +413,6 @@
                 return;
             }
             
-            // V11.2 YENİ YÖNLENDİRME (Yoklama ve Tahsilat İçin Yöneticiye Atma)
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci'); const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
@@ -498,10 +497,6 @@
             cancelAdminLogin(); 
             currentTeacher = ''; currentUser = 'admin'; document.body.className = 'admin-mode';
             populateTeacherSelect(); renderCampusFilters();
-        }
-        
-        function goToMuhasebe() {
-            alert("Muhasebe modülü yapım aşamasındadır, yakında github üzerinden aktif edilecektir.");
         }
 
         function sortStudents() {
@@ -646,13 +641,11 @@
 
         let currentStudentIndex = -1;
         
-        // V11.2 - YENİ AKILLI MODAL AÇILIŞ FONKSİYONU
         function openDetailModal(index) {
             currentStudentIndex = index; const student = students[index];
             document.getElementById('modalStudentName').textContent = student.adSoyad; 
             document.getElementById('modalStudentInfo').textContent = `${student.kampus} Kampüsü | ${student.sinif}. Sınıf - ${student.okul} | Veli: ${student.veliAd} (${student.veliTel})`;
             
-            // Dışarıdaki tablodan seçili olan dersin ID'sini tespit et
             const tableSelectElement = document.getElementById(`table_course_select_${index}`);
             const selectedCourseId = tableSelectElement ? tableSelectElement.value : null;
 
@@ -664,8 +657,6 @@
             student.dersKayitlari.forEach((sc, i) => { 
                 if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return; 
                 select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`; 
-                
-                // Seçili dersin indeksini bul ve eşleştir
                 if (sc.courseId.toString() === selectedCourseId) {
                     targetSelectIndex = optionIndexCounter;
                 }
@@ -676,7 +667,7 @@
             document.getElementById('logOdemeTarih').valueAsDate = new Date();
             
             if(select.options.length > 0) { 
-                select.selectedIndex = targetSelectIndex; // Dışarıdaki dersi içeriye otomatik seçili at
+                select.selectedIndex = targetSelectIndex; 
                 renderModalLists(); 
                 document.getElementById('detailModal').style.display = 'flex'; 
             } else { 
@@ -737,9 +728,44 @@
         function deleteStudentFromForm() { const idx = document.getElementById('editIndex').value; if(idx > -1 && confirm('Öğrenciyi kalıcı olarak silmek istediğinize emin misiniz?')) { students.splice(idx, 1); saveData(); renderCampusFilters(); renderTable(); clearForm(); } }
 
         function saveData() { localStorage.setItem('kursOgrencileri', JSON.stringify(students)); }
-        function exportBackup() { const link = document.createElement('a'); link.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify({ courses: coursesDB, students: students }, null, 2))); link.setAttribute('download', `kurs_yedek_${new Date().toISOString().slice(0,10)}.json`); link.click(); }
-        function importBackup(event) { const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(data.courses && data.students) { coursesDB = data.courses; students = data.students; } else { students = data; } saveData(); localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); migrateOldData(); renderCourseCheckboxes(); renderCampusFilters(); renderTable(); populateTeacherSelect(); alert("Yedek başarıyla yüklendi!"); } catch(err) { alert("Yedek yükleme hatası: Dosya bozuk."); } }; reader.readAsText(event.target.files[0]); }
-
+        
+        // V11.3 - YENİ MUHASEBE DESTEKLİ YEDEKLEME MOTORU
+        function exportBackup() { 
+            const muhasebeDB = JSON.parse(localStorage.getItem('kursMuhasebe')) || { anlasmalar: {}, odemeler: {} };
+            const dataToSave = { courses: coursesDB, students: students, muhasebe: muhasebeDB };
+            const link = document.createElement('a'); 
+            link.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify(dataToSave, null, 2))); 
+            link.setAttribute('download', `kurs_yedek_${new Date().toISOString().slice(0,10)}.json`); 
+            link.click(); 
+        }
+        
+        function importBackup(event) { 
+            const reader = new FileReader(); 
+            reader.onload = function(e) { 
+                try { 
+                    const data = JSON.parse(e.target.result); 
+                    if(data.courses && data.students) { 
+                        coursesDB = data.courses; 
+                        students = data.students; 
+                        // Eğer yedeğin içinde muhasebe dosyası varsa, onu da kasaya koy.
+                        if(data.muhasebe) localStorage.setItem('kursMuhasebe', JSON.stringify(data.muhasebe));
+                    } else { 
+                        students = data; 
+                    } 
+                    saveData(); 
+                    localStorage.setItem('kursDersleri', JSON.stringify(coursesDB)); 
+                    migrateOldData(); 
+                    renderCourseCheckboxes(); 
+                    renderCampusFilters(); 
+                    renderTable(); 
+                    populateTeacherSelect(); 
+                    alert("Yedek başarıyla yüklendi!"); 
+                } catch(err) { 
+                    alert("Yedek yükleme hatası: Dosya bozuk."); 
+                } 
+            }; 
+            reader.readAsText(event.target.files[0]); 
+        }
 
         // --- YENİ PROFESYONEL PDF MOTORU (jsPDF + AutoTable) ---
         function convertTrForPDF(text) {
