@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V11.0 - Profesyonel PDF)</title>
+    <title>Kurs Takip Asistanı (V11.1 - Akıllı Giriş ve PDF)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     
@@ -377,6 +377,8 @@
             const autoTeacher = urlParams.get('otomatikGiris');
             if(autoTeacher) {
                 currentTeacher = decodeURIComponent(autoTeacher);
+                // V11.1 - Linkten gelinse bile cihaz öğretmeni hafızaya alır
+                localStorage.setItem('kursSonOgretmen', currentTeacher);
                 document.body.className = 'teacher-mode';
                 currentUser = 'teacher';
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -438,20 +440,56 @@
         }
 
         function checkLoginStatus() { populateTeacherSelect(); if(currentUser) updateRoleBanner(); }
+        
+        // V11.1 - YENİ AKILLI ÖĞRETMEN LİSTELEME FONKSİYONU
         function populateTeacherSelect() {
-            const select = document.getElementById('loginTeacherSelect'); select.innerHTML = '<option value="">-- Öğretmen Seçin --</option>';
-            const teachers = [...new Set(coursesDB.map(c => c.ogretmen.trim()))];
-            teachers.forEach(t => { select.innerHTML += `<option value="${t}">${t}</option>`; });
+            const select = document.getElementById('loginTeacherSelect'); 
+            select.innerHTML = '<option value="">-- Öğretmen Seçin --</option>';
+            
+            let teacherSet = new Set();
+            
+            // 1. Yönetici cihazından gelen ayarlar (Eğer cihazda ayar varsa)
+            coursesDB.forEach(c => { if(c.ogretmen) teacherSet.add(c.ogretmen.trim()); });
+            
+            // 2. Öğretmen cihazındaki mevcut öğrenci kayıtlarından çekilen isimler
+            // (Öğretmenin cihazında ayarlar boş olsa bile, transfer edilmiş öğrenciler sayesinde ismini bulur)
+            students.forEach(s => {
+                if (s.dersKayitlari) {
+                    s.dersKayitlari.forEach(d => {
+                        if (d.ogretmen) teacherSet.add(d.ogretmen.trim());
+                    });
+                }
+            });
+            
+            const teachers = [...teacherSet].sort();
+            const lastTeacher = localStorage.getItem('kursSonOgretmen') || "";
+            
+            teachers.forEach(t => { 
+                let isSelected = (t === lastTeacher) ? "selected" : "";
+                select.innerHTML += `<option value="${t}" ${isSelected}>${t}</option>`; 
+            });
         }
+
         function loginAs(role, fromLink = false) {
             if (role === 'teacher') {
-                if (!fromLink) { currentTeacher = document.getElementById('loginTeacherSelect').value; if (!currentTeacher) { alert("Lütfen bir öğretmen seçin!"); return; } }
+                if (!fromLink) { 
+                    currentTeacher = document.getElementById('loginTeacherSelect').value; 
+                    if (!currentTeacher) { alert("Lütfen bir öğretmen seçin!"); return; } 
+                }
+                // V11.1 - Son giren öğretmeni cihaz hafızasında tut
+                localStorage.setItem('kursSonOgretmen', currentTeacher);
                 document.body.className = 'teacher-mode';
-            } else { document.body.className = 'admin-mode'; currentTeacher = ''; }
+            } else { 
+                document.body.className = 'admin-mode'; 
+                currentTeacher = ''; 
+                // Yönetici olarak girilirse öğretmen hafızasını sıfırla
+                localStorage.removeItem('kursSonOgretmen');
+            }
             currentUser = role; document.getElementById('loginOverlay').style.display = 'none';
             updateRoleBanner(); renderCampusFilters(); renderTable();
             if(!fromLink) { window.history.replaceState({}, document.title, window.location.pathname); }
         }
+
         function logout() { 
             document.getElementById('loginOverlay').style.display = 'flex'; 
             cancelAdminLogin(); 
@@ -670,8 +708,6 @@
 
 
         // --- YENİ PROFESYONEL PDF MOTORU (jsPDF + AutoTable) ---
-        
-        // Türkçe karakterleri sorunsuz PDF çıktısı için İngilizce karakterlere çeviren güvenli dönüştürücü
         function convertTrForPDF(text) {
             if (!text) return '';
             return text.toString()
@@ -687,13 +723,11 @@
             if(currentStudentIndex === -1) return;
             const student = students[currentStudentIndex];
             
-            // jsPDF Kütüphanesini Başlat
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4'); // Dikey, Milimetre, A4 Formatı
+            const doc = new jsPDF('p', 'mm', 'a4');
             
-            let y = 20; // Yukarıdan 20mm boşlukla başla
+            let y = 20;
 
-            // Kuruma Kalan Genel Toplam Borç Hesaplaması
             let genelToplamBorc = 0;
             student.dersKayitlari.forEach(d => {
                 let islenen = d.katilimlar.reduce((s,k) => s + (k.durum === 'Geldi' ? k.saat : 0), 0);
@@ -701,115 +735,75 @@
                 genelToplamBorc += ((islenen * d.ucret) - odenen);
             });
 
-            // --- ÜST BİLGİ (ANTET) ---
-            doc.setFontSize(16);
-            doc.setFont("helvetica", "bold");
-            doc.text(convertTrForPDF("VELI BILGILENDIRME EKSTRESI"), 105, y, { align: 'center' });
-            y += 8;
+            doc.setFontSize(16); doc.setFont("helvetica", "bold");
+            doc.text(convertTrForPDF("VELI BILGILENDIRME EKSTRESI"), 105, y, { align: 'center' }); y += 8;
             
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text(convertTrForPDF("Rapor Tarihi: " + formatDate(new Date().toISOString().slice(0,10))), 195, y, { align: 'right' });
-            y += 10;
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(convertTrForPDF("Rapor Tarihi: " + formatDate(new Date().toISOString().slice(0,10))), 195, y, { align: 'right' }); y += 10;
 
-            // --- ÖĞRENCİ BİLGİLERİ ---
             doc.setFontSize(11);
             doc.text(convertTrForPDF(`Ogrenci : ${student.adSoyad}`), 15, y);
-            doc.text(convertTrForPDF(`Okul/Sinif: ${student.sinif}. Sinif - ${student.okul}`), 110, y);
-            y += 6;
+            doc.text(convertTrForPDF(`Okul/Sinif: ${student.sinif}. Sinif - ${student.okul}`), 110, y); y += 6;
             doc.text(convertTrForPDF(`Veli    : ${student.veliAd} (${student.veliTel})`), 15, y);
-            doc.text(convertTrForPDF(`Kampus    : ${student.kampus || 'Merkez'}`), 110, y);
-            y += 10;
+            doc.text(convertTrForPDF(`Kampus    : ${student.kampus || 'Merkez'}`), 110, y); y += 10;
             
-            // --- GENEL BORÇ ÖZETİ ---
-            doc.setFontSize(12);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(220, 38, 38); // Kırmızı (Danger) Renk
+            doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(220, 38, 38); 
             doc.text(convertTrForPDF(`*** KURUMA KALAN TOPLAM BORC: ${formatMoney(genelToplamBorc)} TL ***`), 105, y, { align: 'center' });
-            doc.setTextColor(0, 0, 0); // Rengi siyaha geri döndür
-            doc.setFont("helvetica", "normal");
-            y += 10;
+            doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal"); y += 10;
             
-            doc.setDrawColor(200, 200, 200); // Çizgi rengi
-            doc.line(15, y, 195, y);
-            y += 10;
+            doc.setDrawColor(200, 200, 200); doc.line(15, y, 195, y); y += 10;
 
-            // --- DERSLERİN DÖNGÜSÜ ---
             student.dersKayitlari.forEach((d, index) => {
                 let islenen = d.katilimlar.reduce((s,k) => s + (k.durum === 'Geldi' ? k.saat : 0), 0);
                 let odenen = d.odemeler.reduce((s,p) => s + p.miktar, 0);
                 let hakEdis = islenen * d.ucret;
                 let borc = hakEdis - odenen;
 
-                // Yeni sayfaya geçiş kontrolü (Sayfa sonuna yaklaşıldıysa)
                 if (y > 240) { doc.addPage(); y = 20; }
 
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "bold");
+                doc.setFontSize(12); doc.setFont("helvetica", "bold");
                 doc.text(convertTrForPDF(`DERS: ${d.brans} (Ogretmen: ${d.ogretmen})`), 15, y);
-                doc.setFont("helvetica", "normal");
-                y += 8;
+                doc.setFont("helvetica", "normal"); y += 8;
 
-                let startYTables = y; // Tabloların aynı hizada başlaması için Y noktasını sabitle
+                let startYTables = y;
 
-                // --- SOL TABLO: YOKLAMA ---
                 let katilimData = d.katilimlar.map(k => [formatDate(k.tarih), k.saat + " Saat", convertTrForPDF(k.durum)]);
                 if(katilimData.length === 0) katilimData = [[convertTrForPDF("Kayit yok"), "", ""]];
                 
                 doc.autoTable({
-                    startY: startYTables,
-                    margin: { left: 15 },
-                    tableWidth: 85, // A4 kağıdında sol yarı
+                    startY: startYTables, margin: { left: 15 }, tableWidth: 85,
                     head: [[convertTrForPDF('Tarih'), convertTrForPDF('Saat'), convertTrForPDF('Durum')]],
-                    body: katilimData,
-                    styles: { fontSize: 8, font: 'helvetica' },
-                    headStyles: { fillColor: [37, 99, 235] }, // Primary Mavi
-                    theme: 'striped'
+                    body: katilimData, styles: { fontSize: 8, font: 'helvetica' },
+                    headStyles: { fillColor: [37, 99, 235] }, theme: 'striped'
                 });
-                let leftFinalY = doc.lastAutoTable.finalY; // Sol tablonun bittiği milimetre
+                let leftFinalY = doc.lastAutoTable.finalY;
 
-                // --- SAĞ TABLO: TAHSİLAT ---
                 let odemeData = d.odemeler.map(p => [formatDate(p.tarih), formatMoney(p.miktar) + " TL"]);
                 if(odemeData.length === 0) odemeData = [[convertTrForPDF("Kayit yok"), ""]];
 
                 doc.autoTable({
-                    startY: startYTables,
-                    margin: { left: 110 },
-                    tableWidth: 85, // A4 kağıdında sağ yarı
+                    startY: startYTables, margin: { left: 110 }, tableWidth: 85,
                     head: [[convertTrForPDF('Tarih'), convertTrForPDF('Tutar')]],
-                    body: odemeData,
-                    styles: { fontSize: 8, font: 'helvetica' },
-                    headStyles: { fillColor: [16, 185, 129] }, // Success Yeşil
-                    theme: 'striped'
+                    body: odemeData, styles: { fontSize: 8, font: 'helvetica' },
+                    headStyles: { fillColor: [16, 185, 129] }, theme: 'striped'
                 });
-                let rightFinalY = doc.lastAutoTable.finalY; // Sağ tablonun bittiği milimetre
+                let rightFinalY = doc.lastAutoTable.finalY;
 
-                // Hangi tablo daha uzunsa, bir sonraki yazıyı onun altından başlat
                 y = Math.max(leftFinalY, rightFinalY) + 10;
 
-                // --- DERSİN ÖZET ALT BİLGİSİ ---
-                if (y > 270) { doc.addPage(); y = 20; } // Sığmazsa yeni sayfa
+                if (y > 270) { doc.addPage(); y = 20; } 
                 
                 doc.setFontSize(9);
                 doc.text(convertTrForPDF(`Toplam Islenen : ${islenen} Saat`), 15, y);
-                doc.text(convertTrForPDF(`Toplam Odenen : ${formatMoney(odenen)} TL`), 110, y);
-                y += 5;
-                doc.text(convertTrForPDF(`Hak Edis       : ${formatMoney(hakEdis)} TL`), 15, y);
-                y += 5;
+                doc.text(convertTrForPDF(`Toplam Odenen : ${formatMoney(odenen)} TL`), 110, y); y += 5;
+                doc.text(convertTrForPDF(`Hak Edis       : ${formatMoney(hakEdis)} TL`), 15, y); y += 5;
                 
-                doc.setFont("helvetica", "bold");
-                doc.setTextColor(37, 99, 235); // Mavi Vurgu
+                doc.setFont("helvetica", "bold"); doc.setTextColor(37, 99, 235); 
                 doc.text(convertTrForPDF(`>>> Bu Dersten Kalan Borc: ${formatMoney(borc)} TL <<<`), 105, y, { align: 'center' });
-                doc.setTextColor(0, 0, 0); // Siyaha geri dön
-                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal"); y += 10;
                 
-                y += 10;
-                doc.setDrawColor(200, 200, 200);
-                doc.line(15, y, 195, y); // Dersler arası ince çizgi
-                y += 10;
+                doc.setDrawColor(200, 200, 200); doc.line(15, y, 195, y); y += 10;
             });
-
-            // PDF'i İndir
             doc.save(convertTrForPDF(`${student.adSoyad}_Ekstre.pdf`));
         }
     </script>
