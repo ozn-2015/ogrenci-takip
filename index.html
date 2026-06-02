@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V11.1 - Akıllı Giriş ve PDF)</title>
+    <title>Kurs Takip Asistanı (V11.2 - Akıllı Senkron ve Yönlendirme)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     
@@ -377,7 +377,6 @@
             const autoTeacher = urlParams.get('otomatikGiris');
             if(autoTeacher) {
                 currentTeacher = decodeURIComponent(autoTeacher);
-                // V11.1 - Linkten gelinse bile cihaz öğretmeni hafızaya alır
                 localStorage.setItem('kursSonOgretmen', currentTeacher);
                 document.body.className = 'teacher-mode';
                 currentUser = 'teacher';
@@ -413,23 +412,35 @@
                 }
                 return;
             }
+            
+            // V11.2 YENİ YÖNLENDİRME (Yoklama ve Tahsilat İçin Yöneticiye Atma)
             if (islem === 'yoklama') {
                 const ogrAd = urlParams.get('ogrenci'); const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
                 if(student) {
                     const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
-                    if(sc) { sc.katilimlar.push({ tarih: urlParams.get('tarih'), saat: parseInt(urlParams.get('saat')), durum: urlParams.get('durum'), veliBildirildi: false, adminBildirildi: true }); saveData(); alert(`✅ Yoklama İşlendi: ${ogrAd}`); }
+                    if(sc) { 
+                        sc.katilimlar.push({ tarih: urlParams.get('tarih'), saat: parseInt(urlParams.get('saat')), durum: urlParams.get('durum'), veliBildirildi: false, adminBildirildi: true }); 
+                        saveData(); 
+                        alert(`✅ Veri başarıyla işlendi (${ogrAd}). Lütfen kontrol için Yönetici şifrenizi giriniz.`); 
+                    }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => { logout(); showAdminLoginPrompt(); }, 100);
             }
             if (islem === 'tahsilat') {
                 const ogrAd = urlParams.get('ogrenci'); const courseId = urlParams.get('courseId');
                 const student = students.find(s => s.adSoyad.trim().toLowerCase() === ogrAd.trim().toLowerCase());
                 if(student) {
                     const sc = student.dersKayitlari.find(c => c.courseId.toString() === courseId.toString());
-                    if(sc) { sc.odemeler.push({ tarih: urlParams.get('tarih'), miktar: parseFloat(urlParams.get('miktar')), adminBildirildi: true }); saveData(); alert(`✅ Tahsilat İşlendi: ${ogrAd}`); }
+                    if(sc) { 
+                        sc.odemeler.push({ tarih: urlParams.get('tarih'), miktar: parseFloat(urlParams.get('miktar')), adminBildirildi: true }); 
+                        saveData(); 
+                        alert(`✅ Veri başarıyla işlendi (${ogrAd}). Lütfen kontrol için Yönetici şifrenizi giriniz.`); 
+                    }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => { logout(); showAdminLoginPrompt(); }, 100);
             }
         }
 
@@ -441,18 +452,12 @@
 
         function checkLoginStatus() { populateTeacherSelect(); if(currentUser) updateRoleBanner(); }
         
-        // V11.1 - YENİ AKILLI ÖĞRETMEN LİSTELEME FONKSİYONU
         function populateTeacherSelect() {
             const select = document.getElementById('loginTeacherSelect'); 
             select.innerHTML = '<option value="">-- Öğretmen Seçin --</option>';
             
             let teacherSet = new Set();
-            
-            // 1. Yönetici cihazından gelen ayarlar (Eğer cihazda ayar varsa)
             coursesDB.forEach(c => { if(c.ogretmen) teacherSet.add(c.ogretmen.trim()); });
-            
-            // 2. Öğretmen cihazındaki mevcut öğrenci kayıtlarından çekilen isimler
-            // (Öğretmenin cihazında ayarlar boş olsa bile, transfer edilmiş öğrenciler sayesinde ismini bulur)
             students.forEach(s => {
                 if (s.dersKayitlari) {
                     s.dersKayitlari.forEach(d => {
@@ -476,13 +481,11 @@
                     currentTeacher = document.getElementById('loginTeacherSelect').value; 
                     if (!currentTeacher) { alert("Lütfen bir öğretmen seçin!"); return; } 
                 }
-                // V11.1 - Son giren öğretmeni cihaz hafızasında tut
                 localStorage.setItem('kursSonOgretmen', currentTeacher);
                 document.body.className = 'teacher-mode';
             } else { 
                 document.body.className = 'admin-mode'; 
                 currentTeacher = ''; 
-                // Yönetici olarak girilirse öğretmen hafızasını sıfırla
                 localStorage.removeItem('kursSonOgretmen');
             }
             currentUser = role; document.getElementById('loginOverlay').style.display = 'none';
@@ -642,14 +645,45 @@
         }
 
         let currentStudentIndex = -1;
+        
+        // V11.2 - YENİ AKILLI MODAL AÇILIŞ FONKSİYONU
         function openDetailModal(index) {
             currentStudentIndex = index; const student = students[index];
-            document.getElementById('modalStudentName').textContent = student.adSoyad; document.getElementById('modalStudentInfo').textContent = `${student.kampus} Kampüsü | ${student.sinif}. Sınıf - ${student.okul} | Veli: ${student.veliAd} (${student.veliTel})`;
+            document.getElementById('modalStudentName').textContent = student.adSoyad; 
+            document.getElementById('modalStudentInfo').textContent = `${student.kampus} Kampüsü | ${student.sinif}. Sınıf - ${student.okul} | Veli: ${student.veliAd} (${student.veliTel})`;
+            
+            // Dışarıdaki tablodan seçili olan dersin ID'sini tespit et
+            const tableSelectElement = document.getElementById(`table_course_select_${index}`);
+            const selectedCourseId = tableSelectElement ? tableSelectElement.value : null;
+
             const select = document.getElementById('modalCourseSelect'); select.innerHTML = '';
-            student.dersKayitlari.forEach((sc, i) => { if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return; select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`; });
-            document.getElementById('logKatilimTarih').valueAsDate = new Date(); document.getElementById('logOdemeTarih').valueAsDate = new Date();
-            if(select.options.length > 0) { renderModalLists(); document.getElementById('detailModal').style.display = 'flex'; } else { alert("Size ait atanmış ders bulunamadı."); }
+            
+            let targetSelectIndex = 0; 
+            let optionIndexCounter = 0;
+            
+            student.dersKayitlari.forEach((sc, i) => { 
+                if(currentUser === 'teacher' && sc.ogretmen.trim().toLowerCase() !== currentTeacher.trim().toLowerCase()) return; 
+                select.innerHTML += `<option value="${i}">${sc.brans} - ${sc.ogretmen}</option>`; 
+                
+                // Seçili dersin indeksini bul ve eşleştir
+                if (sc.courseId.toString() === selectedCourseId) {
+                    targetSelectIndex = optionIndexCounter;
+                }
+                optionIndexCounter++;
+            });
+            
+            document.getElementById('logKatilimTarih').valueAsDate = new Date(); 
+            document.getElementById('logOdemeTarih').valueAsDate = new Date();
+            
+            if(select.options.length > 0) { 
+                select.selectedIndex = targetSelectIndex; // Dışarıdaki dersi içeriye otomatik seçili at
+                renderModalLists(); 
+                document.getElementById('detailModal').style.display = 'flex'; 
+            } else { 
+                alert("Size ait atanmış ders bulunamadı."); 
+            }
         }
+
         function closeDetailModal() { document.getElementById('detailModal').style.display = 'none'; renderTable(); }
 
         function renderModalLists() {
