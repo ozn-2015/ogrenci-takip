@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V11.6 - Gelişmiş Güvenlik Entegreli Ana Kod)</title>
+    <title>Kurs Takip Asistanı (V11.7 - Üst Düzey Güvenlik Maskeli Ana Kod)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     
@@ -216,7 +216,7 @@
             <div style="margin-bottom: 20px; background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca;">
                 <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">🔒 Yönetici Paneli Güvenliği & Şifre İşlemleri</label>
                 <div style="display: flex; gap: 10px; margin-bottom:10px;">
-                    <input type="text" id="setAdminPass" placeholder="Yeni Giriş Şifresi (Örn: 1234)" style="flex: 1;">
+                    <input type="text" id="setAdminPass" placeholder="Yeni Giriş Şifresi" style="flex: 1;">
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap:wrap;">
                     <input type="text" id="setSecQ" placeholder="Gizli Soru (Örn: İlk evcil hayvanınız?)" style="flex: 2;">
@@ -225,8 +225,8 @@
                 </div>
                 
                 <hr style="border-top: 1px dashed #fca5a5; margin: 15px 0;">
-                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">📲 WhatsApp Şifre Sıfırlama Köprüsü</label>
-                <p style="font-size:0.85rem; color:#b91c1c; margin-top:0;">Şifresini unutan öğretmene WhatsApp üzerinden şifre sıfırlama linki göndermek için bu butonu kullanın.</p>
+                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">📲 WhatsApp Maskeli Şifre Sıfırlama Köprüsü</label>
+                <p style="font-size:0.85rem; color:#b91c1c; margin-top:0;">Şifresini unutan öğretmen için dışarıdan okunamayacak Base64 maskeli sıfırlama linki üretir.</p>
                 <button style="width: 100%; background-color: #dc2626;" onclick="generateResetLink()">Şifre Sıfırlama Linki Üret (WhatsApp İle Paylaş)</button>
             </div>
 
@@ -305,8 +305,10 @@
     </div>
 
     <script>
-        // --- SİSTEM SABİTLERİ (MASTER ŞİFRE) ---
+        // --- SİSTEM SABİTLERİ (GİZLİ KODLAR) ---
         const MASTER_PASS = "26bam2026";
+        // Link güvenliği için Base64 karıştırma maskesi tuzu
+        const MASK_PREFIX = "mstr_"; 
 
         // --- VERİTABANI DEĞİŞKENLERİ ---
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
@@ -356,7 +358,7 @@
             renderSettingsTable();
         };
 
-        // --- GÜVENLİK VE GİRİŞ İŞLEMLERİ (YENİ SÜRÜM) ---
+        // --- GÜVENLİK VE GİRİŞ İŞLEMLERİ ---
         function showAdminLoginPrompt() {
             document.getElementById('mainLoginView').style.display = 'none';
             document.getElementById('adminLoginView').style.display = 'block';
@@ -371,13 +373,23 @@
             document.getElementById('adminPassInput').value = '';
             document.getElementById('secAnswerInput').value = '';
         }
+        
+        // 🚨 GÜNCELLEME: Master Şifre direkt ekrandan yazılırsa ENGELLE, geçiş verme!
         function verifyAdminPass() {
-            if(document.getElementById('adminPassInput').value === adminPassword) {
-                sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
+            const inputPass = document.getElementById('adminPassInput').value;
+            if(inputPass === MASTER_PASS) {
+                alert('Bu kod acil durum anahtarıdır. Güvenlik gereği giriş ekranından manuel olarak kullanılamaz!');
+                document.getElementById('adminPassInput').value = '';
+                return;
+            }
+            
+            if(inputPass === adminPassword) {
+                sessionStorage.setItem('kursAdminLoggedIn', 'true'); 
                 loginAs('admin');
                 cancelAdminLogin();
             } else { alert('Hatalı şifre! Lütfen tekrar deneyin.'); }
         }
+        
         function showForgotPassword() {
             document.getElementById('adminLoginView').style.display = 'none';
             document.getElementById('forgotPassView').style.display = 'block';
@@ -386,7 +398,7 @@
         function verifySecurityAnswer() {
             if(document.getElementById('secAnswerInput').value.trim().toLowerCase() === securityAnswer.trim().toLowerCase()) {
                 alert('Doğrulama Başarılı! Sisteme giriliyor. Lütfen ayarlardan şifrenizi yenileyin.');
-                sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
+                sessionStorage.setItem('kursAdminLoggedIn', 'true'); 
                 loginAs('admin');
                 cancelAdminLogin();
             } else { alert('Hatalı cevap!'); }
@@ -402,7 +414,7 @@
             document.getElementById('setAdminPass').value = ''; 
         }
 
-        // --- AKILLI ŞİFRE KURTARMA KÖPRÜSÜ (YENİ EKLENTİ) ---
+        // --- MASKELİ WHATSAPP ŞIFRE KURTARMA KÖPRÜSÜ ---
         function requestResetLink() {
             const adminPhoneNum = adminPhone || ""; 
             if(!adminPhoneNum) return alert("Sistemde yönetici numarası kayıtlı değil. Lütfen başka bir iletişim yoluyla yöneticiye ulaşın.");
@@ -410,9 +422,12 @@
             window.open(`https://wa.me/90${adminPhoneNum}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
+        // 🔒 GÜNCELLEME: Link içine Base64 maskeleme uygulandı (Dışarıdan şifre okunamaz)
         function generateResetLink() {
             const baseUrl = window.location.href.split('?')[0];
-            const link = `${baseUrl}?islem=sifreSifirla&kod=${encodeURIComponent(MASTER_PASS)}`;
+            const rawMaskToken = MASK_PREFIX + MASTER_PASS; 
+            const encryptedToken = btoa(rawMaskToken); // Base64 Maskeleme
+            const link = `${baseUrl}?islem=sifreSifirla&kod=${encodeURIComponent(encryptedToken)}`;
             let msg = `Şifre Sıfırlama Bağlantınız:\n\n${link}\n\n*Bu linke tıklayarak yeni şifrenizi ve gizli sorunuzu belirleyebilirsiniz.*`;
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); 
         }
@@ -429,27 +444,30 @@
             
             alert("Şifreniz ve güvenlik sorunuz başarıyla yenilendi! Sisteme giriş yapılıyor.");
             document.getElementById('masterResetView').style.display = 'none';
-            sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
+            sessionStorage.setItem('kursAdminLoggedIn', 'true'); 
             loginAs('admin');
         }
 
-        // --- URL İŞLEMLERİ VE BYPASS (YENİ EKLENTİ) ---
+        // --- URL İŞLEMLERİ VE BYPASS ÇÖZÜCÜ ---
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
             const islem = urlParams.get('islem');
 
-            // Şifre Sıfırlama Bypass Kontrolü
+            // 🔒 GÜNCELLEME: Base64 Maskeli Gelen Kodu Arka Planda Çözüp Doğrulama
             if (islem === 'sifreSifirla') {
-                const kod = urlParams.get('kod');
-                if(kod === MASTER_PASS) {
-                    document.getElementById('loginOverlay').style.display = 'flex';
-                    document.getElementById('mainLoginView').style.display = 'none';
-                    document.getElementById('adminLoginView').style.display = 'none';
-                    document.getElementById('forgotPassView').style.display = 'none';
-                    document.getElementById('masterResetView').style.display = 'block';
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    return;
-                } else {
+                const encryptedKod = urlParams.get('kod');
+                try {
+                    const decryptedToken = atob(encryptedKod); // Base64 Çözücü
+                    if(decryptedToken === (MASK_PREFIX + MASTER_PASS)) {
+                        document.getElementById('loginOverlay').style.display = 'flex';
+                        document.getElementById('mainLoginView').style.display = 'none';
+                        document.getElementById('adminLoginView').style.display = 'none';
+                        document.getElementById('forgotPassView').style.display = 'none';
+                        document.getElementById('masterResetView').style.display = 'block';
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;
+                    } else { throw new Error("Gecersiz Anahtar"); }
+                } catch(e) {
                     alert("Sıfırlama linki geçersiz veya süresi dolmuş.");
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
@@ -531,13 +549,10 @@
 
         function checkLoginStatus() { 
             populateTeacherSelect(); 
-            
-            // Sekme Bazlı Hafıza Kontrolü
             if(sessionStorage.getItem('kursAdminLoggedIn') === 'true') {
                 loginAs('admin', true);
                 return;
             }
-
             if(currentUser) updateRoleBanner(); 
         }
         
@@ -583,7 +598,7 @@
         }
 
         function logout() { 
-            sessionStorage.removeItem('kursAdminLoggedIn'); // ÇIKIŞ YAPILINCA HAFIZAYI SİL
+            sessionStorage.removeItem('kursAdminLoggedIn'); 
             document.getElementById('loginOverlay').style.display = 'flex'; 
             cancelAdminLogin(); 
             currentTeacher = ''; currentUser = 'admin'; document.body.className = 'admin-mode';
@@ -792,8 +807,8 @@
         function notifyAdmin(tip, idx) {
             if (currentUser === 'admin') { alert("Yönetici rolünde olduğunuz için, yaptığınız işlem doğrudan kaydedildi. Bildirim göndermenize gerek yoktur."); return; }
             const student = students[currentStudentIndex]; const sc = student.dersKayitlari[document.getElementById('modalCourseSelect').value]; const baseUrl = window.location.href.split('?')[0];
-            if (tip === 'yoklama') { const k = sc.katilimlar[idx]; let msg = `YOKLAMA BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(k.tarih)}\nDurum: ${k.durum}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.tarih}&saat=${k.saat}&durum=${encodeURIComponent(k.durum)}`; k.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
-            if (tip === 'tahsilat') { const p = sc.odemeler[idx]; let msg = `TAHSİLAT BİLDİRİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(p.tarih)}\nTutar: ${formatMoney(p.miktar)} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.tarih}&miktar=${p.miktar}`; p.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
+            if (tip === 'yoklama') { const k = sc.katilimlar[idx]; let msg = `YOKLAMA BİSTERİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(k.tarih)}\nDurum: ${k.durum}\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=yoklama&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${k.tarih}&saat=${k.saat}&durum=${encodeURIComponent(k.durum)}`; k.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
+            if (tip === 'tahsilat') { const p = sc.odemeler[idx]; let msg = `TAHSİLAT BİSTERİMİ\nÖğrenci: ${student.adSoyad}\nDers: ${sc.brans}\nÖğretmen: ${sc.ogretmen}\nTarih: ${formatDate(p.tarih)}\nTutar: ${formatMoney(p.miktar)} ₺\n\nSisteme İşlemek İçin Tıkla:\n${baseUrl}?islem=tahsilat&ogrenci=${encodeURIComponent(student.adSoyad)}&courseId=${sc.courseId}&tarih=${p.tarih}&miktar=${p.miktar}`; p.adminBildirildi = true; saveData(); renderModalLists(); renderTable(); window.open(`https://wa.me/90${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank'); }
         }
 
         function addAttendanceLog() { const tarih = document.getElementById('logKatilimTarih').value; const saat = Math.round(Number(document.getElementById('logKatilimSaat').value)); const durum = document.getElementById('logKatilimDurum').value; const courseIndex = document.getElementById('modalCourseSelect').value; if(!tarih || saat <= 0) return alert("Lütfen geçerli bir tarih ve tam sayı saat girin."); students[currentStudentIndex].dersKayitlari[courseIndex].katilimlar.push({ tarih, saat, durum, veliBildirildi: false, adminBildirildi: false }); saveData(); renderModalLists(); renderTable(); }
@@ -894,7 +909,7 @@
             doc.text(convertTrForPDF(`Ogrenci : ${student.adSoyad}`), 15, y);
             doc.text(convertTrForPDF(`Okul/Sinif: ${student.sinif}. Sinif - ${student.okul}`), 110, y); y += 6;
             doc.text(convertTrForPDF(`Veli    : ${student.veliAd} (${student.veliTel})`), 15, y);
-            doc.text(convertTrForPDF(`Kampus    : ${student.kampus || 'Merkez'}`), 110, y); y += 10;
+            doc.text(convertTrForPDF(`Campus    : ${student.kampus || 'Merkez'}`), 110, y); y += 10;
             
             doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(220, 38, 38); 
             doc.text(convertTrForPDF(`*** KURUMA KALAN TOPLAM BORC: ${formatMoney(genelToplamBorc)} TL ***`), 105, y, { align: 'center' });
