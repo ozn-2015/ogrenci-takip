@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kurs Takip Asistanı (V11.3 - Muhasebe Entegreli Ana Kod)</title>
+    <title>Kurs Takip Asistanı (V11.6 - Gelişmiş Güvenlik Entegreli Ana Kod)</title>
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     
@@ -89,6 +89,7 @@
 <body class="admin-mode">
     <div id="loginOverlay">
         <div class="login-box" id="loginBoxContent">
+            
             <div id="mainLoginView">
                 <h2 style="margin-bottom: 25px; border:none; color:var(--text);">Sisteme Giriş Yapın</h2>
                 <button class="login-btn btn-admin" onclick="showAdminLoginPrompt()">👑 Yönetici Girişi</button>
@@ -98,22 +99,40 @@
                 <select id="loginTeacherSelect" style="margin-bottom: 15px; padding: 12px;"></select>
                 <button class="login-btn btn-teacher" onclick="loginAs('teacher')">👨‍🏫 Öğretmen Olarak Devam Et</button>
             </div>
+            
             <div id="adminLoginView" style="display:none;">
-                <h2 style="margin-bottom: 15px; border:none;">Yönetici Şifresi</h2>
-                <input type="password" id="adminPassInput" placeholder="PIN Kodunuzu Girin" style="margin-bottom: 15px; text-align:center; font-size:1.2rem; letter-spacing:3px;">
+                <h2 style="margin-bottom: 15px; border:none;">Yönetici Girişi</h2>
+                <input type="password" id="adminPassInput" placeholder="Şifrenizi Girin" style="margin-bottom: 15px; text-align:center; font-size:1.1rem;">
                 <button class="login-btn btn-admin" onclick="verifyAdminPass()">Giriş Yap</button>
                 <div style="display:flex; justify-content:space-between; margin-top:15px;">
                     <button onclick="cancelAdminLogin()" style="background:none; border:none; color:var(--secondary); cursor:pointer; font-weight:bold;">← Geri Dön</button>
                     <button onclick="showForgotPassword()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:bold;">Şifremi Unuttum?</button>
                 </div>
             </div>
+            
             <div id="forgotPassView" style="display:none;">
                 <h2 style="margin-bottom: 15px; border:none; color:var(--danger);">Şifre Kurtarma</h2>
                 <p id="secQuestionDisplay" style="font-weight:bold; margin-bottom:10px; color:var(--text);"></p>
                 <input type="text" id="secAnswerInput" placeholder="Cevabınız" style="margin-bottom: 15px;">
-                <button class="login-btn btn-teacher" onclick="verifySecurityAnswer()">Doğrula & Giriş Yap</button>
+                <button class="login-btn btn-admin" onclick="verifySecurityAnswer()">Doğrula & Giriş Yap</button>
+                
+                <div style="margin: 25px 0; font-size: 0.9rem; color: var(--secondary); position: relative;">
+                    <hr style="border: 0; border-top: 1px solid var(--border);"><span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">Veya</span>
+                </div>
+                <button class="login-btn btn-teacher" onclick="requestResetLink()">Yöneticiden Sıfırlama Linki İste (WP)</button>
+                
                 <button onclick="cancelAdminLogin()" style="background:none; border:none; color:var(--secondary); cursor:pointer; font-weight:bold; margin-top:15px;">← Geri Dön</button>
             </div>
+
+            <div id="masterResetView" style="display:none;">
+                <h2 style="margin-bottom: 15px; border:none; color:var(--success);">Yeni Şifre Belirleme</h2>
+                <p style="font-size:0.9rem; color:var(--secondary); margin-bottom:15px;">Sıfırlama linki onaylandı. Lütfen yeni şifrenizi ve gizli sorunuzu belirleyin.</p>
+                <input type="text" id="resetNewPass" placeholder="Yeni Şifreniz" style="margin-bottom: 10px;">
+                <input type="text" id="resetNewSecQ" placeholder="Yeni Gizli Soru (Örn: İlk evcil hayvanınız?)" style="margin-bottom: 10px;">
+                <input type="text" id="resetNewSecA" placeholder="Gizli Soru Cevabı" style="margin-bottom: 15px;">
+                <button class="login-btn btn-teacher" onclick="applyMasterReset()">Kaydet ve Sisteme Gir</button>
+            </div>
+
         </div>
     </div>
     
@@ -195,7 +214,7 @@
             <h3 style="margin-top: 0; color: var(--primary);">⚙️ Ayarlar Merkezi</h3>
             
             <div style="margin-bottom: 20px; background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca;">
-                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">🔒 Yönetici Paneli Güvenliği</label>
+                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">🔒 Yönetici Paneli Güvenliği & Şifre İşlemleri</label>
                 <div style="display: flex; gap: 10px; margin-bottom:10px;">
                     <input type="text" id="setAdminPass" placeholder="Yeni Giriş Şifresi (Örn: 1234)" style="flex: 1;">
                 </div>
@@ -204,7 +223,11 @@
                     <input type="text" id="setSecA" placeholder="Cevap" style="flex: 1;">
                     <button style="width: auto; background-color: #991b1b;" onclick="saveSecuritySettings()">Güvenliği Güncelle</button>
                 </div>
-                <small style="color: #b91c1c; display: block; margin-top: 5px;">Varsayılan şifre: 1234 | Soru: İlk evcil hayvanınız? | Cevap: admin</small>
+                
+                <hr style="border-top: 1px dashed #fca5a5; margin: 15px 0;">
+                <label style="color: #991b1b; font-weight: bold; margin-bottom: 8px; display:block;">📲 WhatsApp Şifre Sıfırlama Köprüsü</label>
+                <p style="font-size:0.85rem; color:#b91c1c; margin-top:0;">Şifresini unutan öğretmene WhatsApp üzerinden şifre sıfırlama linki göndermek için bu butonu kullanın.</p>
+                <button style="width: 100%; background-color: #dc2626;" onclick="generateResetLink()">Şifre Sıfırlama Linki Üret (WhatsApp İle Paylaş)</button>
             </div>
 
             <div style="margin-bottom: 20px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe;">
@@ -282,6 +305,9 @@
     </div>
 
     <script>
+        // --- SİSTEM SABİTLERİ (MASTER ŞİFRE) ---
+        const MASTER_PASS = "26bam2026";
+
         // --- VERİTABANI DEĞİŞKENLERİ ---
         let coursesDB = JSON.parse(localStorage.getItem('kursDersleri')) || [];
         let students = JSON.parse(localStorage.getItem('kursOgrencileri')) || [];
@@ -330,21 +356,24 @@
             renderSettingsTable();
         };
 
-        // --- GÜVENLİK VE GİRİŞ İŞLEMLERİ ---
+        // --- GÜVENLİK VE GİRİŞ İŞLEMLERİ (YENİ SÜRÜM) ---
         function showAdminLoginPrompt() {
             document.getElementById('mainLoginView').style.display = 'none';
             document.getElementById('adminLoginView').style.display = 'block';
             document.getElementById('forgotPassView').style.display = 'none';
+            document.getElementById('masterResetView').style.display = 'none';
         }
         function cancelAdminLogin() {
             document.getElementById('mainLoginView').style.display = 'block';
             document.getElementById('adminLoginView').style.display = 'none';
             document.getElementById('forgotPassView').style.display = 'none';
+            document.getElementById('masterResetView').style.display = 'none';
             document.getElementById('adminPassInput').value = '';
             document.getElementById('secAnswerInput').value = '';
         }
         function verifyAdminPass() {
             if(document.getElementById('adminPassInput').value === adminPassword) {
+                sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
                 loginAs('admin');
                 cancelAdminLogin();
             } else { alert('Hatalı şifre! Lütfen tekrar deneyin.'); }
@@ -357,6 +386,7 @@
         function verifySecurityAnswer() {
             if(document.getElementById('secAnswerInput').value.trim().toLowerCase() === securityAnswer.trim().toLowerCase()) {
                 alert('Doğrulama Başarılı! Sisteme giriliyor. Lütfen ayarlardan şifrenizi yenileyin.');
+                sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
                 loginAs('admin');
                 cancelAdminLogin();
             } else { alert('Hatalı cevap!'); }
@@ -372,8 +402,59 @@
             document.getElementById('setAdminPass').value = ''; 
         }
 
+        // --- AKILLI ŞİFRE KURTARMA KÖPRÜSÜ (YENİ EKLENTİ) ---
+        function requestResetLink() {
+            const adminPhoneNum = adminPhone || ""; 
+            if(!adminPhoneNum) return alert("Sistemde yönetici numarası kayıtlı değil. Lütfen başka bir iletişim yoluyla yöneticiye ulaşın.");
+            let msg = "Kurs Takip Asistanı giriş şifremi unuttum. Lütfen bana bir sıfırlama bağlantısı gönderir misiniz?";
+            window.open(`https://wa.me/90${adminPhoneNum}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function generateResetLink() {
+            const baseUrl = window.location.href.split('?')[0];
+            const link = `${baseUrl}?islem=sifreSifirla&kod=${encodeURIComponent(MASTER_PASS)}`;
+            let msg = `Şifre Sıfırlama Bağlantınız:\n\n${link}\n\n*Bu linke tıklayarak yeni şifrenizi ve gizli sorunuzu belirleyebilirsiniz.*`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); 
+        }
+
+        function applyMasterReset() {
+            const p = document.getElementById('resetNewPass').value.trim();
+            const q = document.getElementById('resetNewSecQ').value.trim();
+            const a = document.getElementById('resetNewSecA').value.trim();
+            if(!p || !q || !a) return alert("Lütfen yeni şifre, gizli soru ve cevap alanlarını doldurun.");
+            
+            adminPassword = p; localStorage.setItem('kursAdminPass', adminPassword);
+            securityQuestion = q; localStorage.setItem('kursSecQ', securityQuestion);
+            securityAnswer = a; localStorage.setItem('kursSecA', securityAnswer);
+            
+            alert("Şifreniz ve güvenlik sorunuz başarıyla yenilendi! Sisteme giriş yapılıyor.");
+            document.getElementById('masterResetView').style.display = 'none';
+            sessionStorage.setItem('kursAdminLoggedIn', 'true'); // SEKMEYE OTURUMU KAYDET
+            loginAs('admin');
+        }
+
+        // --- URL İŞLEMLERİ VE BYPASS (YENİ EKLENTİ) ---
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
+            const islem = urlParams.get('islem');
+
+            // Şifre Sıfırlama Bypass Kontrolü
+            if (islem === 'sifreSifirla') {
+                const kod = urlParams.get('kod');
+                if(kod === MASTER_PASS) {
+                    document.getElementById('loginOverlay').style.display = 'flex';
+                    document.getElementById('mainLoginView').style.display = 'none';
+                    document.getElementById('adminLoginView').style.display = 'none';
+                    document.getElementById('forgotPassView').style.display = 'none';
+                    document.getElementById('masterResetView').style.display = 'block';
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return;
+                } else {
+                    alert("Sıfırlama linki geçersiz veya süresi dolmuş.");
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+
             const autoTeacher = urlParams.get('otomatikGiris');
             if(autoTeacher) {
                 currentTeacher = decodeURIComponent(autoTeacher);
@@ -383,7 +464,6 @@
                 document.getElementById('loginOverlay').style.display = 'none';
                 updateRoleBanner();
             }
-            const islem = urlParams.get('islem');
             if (!islem) return;
 
             if (islem === 'transfer') {
@@ -421,11 +501,11 @@
                     if(sc) { 
                         sc.katilimlar.push({ tarih: urlParams.get('tarih'), saat: parseInt(urlParams.get('saat')), durum: urlParams.get('durum'), veliBildirildi: false, adminBildirildi: true }); 
                         saveData(); 
-                        alert(`✅ Veri başarıyla işlendi (${ogrAd}). Lütfen kontrol için Yönetici şifrenizi giriniz.`); 
+                        alert(`✅ Veri başarıyla işlendi (${ogrAd}).`); 
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setTimeout(() => { logout(); showAdminLoginPrompt(); }, 100);
+                setTimeout(() => { if(sessionStorage.getItem('kursAdminLoggedIn') !== 'true') { logout(); showAdminLoginPrompt(); } }, 100);
             }
             if (islem === 'tahsilat') {
                 const ogrAd = urlParams.get('ogrenci'); const courseId = urlParams.get('courseId');
@@ -435,11 +515,11 @@
                     if(sc) { 
                         sc.odemeler.push({ tarih: urlParams.get('tarih'), miktar: parseFloat(urlParams.get('miktar')), adminBildirildi: true }); 
                         saveData(); 
-                        alert(`✅ Veri başarıyla işlendi (${ogrAd}). Lütfen kontrol için Yönetici şifrenizi giriniz.`); 
+                        alert(`✅ Veri başarıyla işlendi (${ogrAd}).`); 
                     }
                 }
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setTimeout(() => { logout(); showAdminLoginPrompt(); }, 100);
+                setTimeout(() => { if(sessionStorage.getItem('kursAdminLoggedIn') !== 'true') { logout(); showAdminLoginPrompt(); } }, 100);
             }
         }
 
@@ -449,7 +529,17 @@
             else { bannerText.innerHTML = `👨‍🏫 ÖĞRETMEN PANELİ (${currentTeacher})`; bannerText.style.color = "var(--success)"; }
         }
 
-        function checkLoginStatus() { populateTeacherSelect(); if(currentUser) updateRoleBanner(); }
+        function checkLoginStatus() { 
+            populateTeacherSelect(); 
+            
+            // Sekme Bazlı Hafıza Kontrolü
+            if(sessionStorage.getItem('kursAdminLoggedIn') === 'true') {
+                loginAs('admin', true);
+                return;
+            }
+
+            if(currentUser) updateRoleBanner(); 
+        }
         
         function populateTeacherSelect() {
             const select = document.getElementById('loginTeacherSelect'); 
@@ -493,6 +583,7 @@
         }
 
         function logout() { 
+            sessionStorage.removeItem('kursAdminLoggedIn'); // ÇIKIŞ YAPILINCA HAFIZAYI SİL
             document.getElementById('loginOverlay').style.display = 'flex'; 
             cancelAdminLogin(); 
             currentTeacher = ''; currentUser = 'admin'; document.body.className = 'admin-mode';
@@ -729,7 +820,6 @@
 
         function saveData() { localStorage.setItem('kursOgrencileri', JSON.stringify(students)); }
         
-        // V11.3 - YENİ MUHASEBE DESTEKLİ YEDEKLEME MOTORU
         function exportBackup() { 
             const muhasebeDB = JSON.parse(localStorage.getItem('kursMuhasebe')) || { anlasmalar: {}, odemeler: {} };
             const dataToSave = { courses: coursesDB, students: students, muhasebe: muhasebeDB };
@@ -747,7 +837,6 @@
                     if(data.courses && data.students) { 
                         coursesDB = data.courses; 
                         students = data.students; 
-                        // Eğer yedeğin içinde muhasebe dosyası varsa, onu da kasaya koy.
                         if(data.muhasebe) localStorage.setItem('kursMuhasebe', JSON.stringify(data.muhasebe));
                     } else { 
                         students = data; 
@@ -767,7 +856,7 @@
             reader.readAsText(event.target.files[0]); 
         }
 
-        // --- YENİ PROFESYONEL PDF MOTORU (jsPDF + AutoTable) ---
+        // --- PROFESYONEL PDF MOTORU ---
         function convertTrForPDF(text) {
             if (!text) return '';
             return text.toString()
